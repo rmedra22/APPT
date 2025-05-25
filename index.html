@@ -139,34 +139,14 @@
       background-color: #ef4444; /* error */
     }
     .loading-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(255, 255, 255, 0.8);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      z-index: 2000;
-      opacity: 0;
-      visibility: hidden;
-      transition: opacity 0.3s ease;
-    }
-    .loading-overlay.show {
-      opacity: 1;
-      visibility: visible;
+      display: none !important;
+      visibility: hidden !important;
+      opacity: 0 !important;
     }
     .spinner {
-      border: 4px solid rgba(0, 0, 0, 0.1);
-      border-left-color: #0466C8;
-      border-radius: 50%;
-      width: 40px;
-      height: 40px;
-      animation: spin 1s linear infinite;
-    }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
+      display: none !important;
+      visibility: hidden !important;
+      opacity: 0 !important;
     }
     .form-container {
       background-color: white;
@@ -522,6 +502,25 @@
       margin-top: 2rem;
     }
 
+    /* Checkbox styling */
+    .checkbox-wrapper {
+      display: flex;
+      align-items: center;
+      margin-top: 0.25rem;
+    }
+    
+    .checkbox-wrapper input[type="checkbox"] {
+      width: 1.25rem;
+      height: 1.25rem;
+      margin-right: 0.5rem;
+      cursor: pointer;
+      accent-color: #0466C8;
+    }
+    
+    .checkbox-label {
+      font-size: 0.9rem;
+      color: #4b5563;
+    }
   </style>
 
 </head>
@@ -550,8 +549,7 @@
   <div id="dashboardPage" class="hidden w-full flex">
     <aside id="sidebar" class="sidebar">
       <div class="sidebar-header">
-        <img id="agentAvatar" src="https://ui-avatars.com/api/?name=Juan+Dela+Cruz&background=random" alt="Agent Avatar" class="rounded-full w-10 h-10 object-cover">
-
+        <img id="agentAvatar" src="https://ui-avatars.com/api/?name=User&background=random" alt="Agent Avatar" class="rounded-full w-10 h-10 object-cover">
         <div>
           <h2 id="agentNameDisplay">Agent Name</h2>
           <span id="agentRoleDisplay" class="text-xs text-gray-300">Role</span>
@@ -565,7 +563,9 @@
         <a href="#" data-page="expenses-to-income-report-form"><i class="fas fa-money-bill-wave"></i> Expenses Report</a>
         <a href="#" data-page="potential-business-partners-form"><i class="fas fa-handshake"></i> Business Partners</a>
         <a href="#" data-page="potential-field-trainings-form"><i class="fas fa-chalkboard-teacher"></i> Field Trainings</a>
-        </nav>
+        <!-- Add User Management link for admin only -->
+        <a href="#" data-page="user-management-form" class="admin-only"><i class="fas fa-users-cog"></i> User Management</a>
+      </nav>
       <div class="mt-auto">
         <a href="#" id="logoutButton" class="mt-4 flex items-center p-3 rounded-md text-white hover:bg-navy transition">
           <i class="fas fa-sign-out-alt mr-3"></i> Logout
@@ -630,6 +630,7 @@
           <div class="form-container">
             <h2 class="page-title">Personal Details</h2>
             <p class="page-description">Enter your personal information and licensing details.</p>
+            
             <form id="personalForm" class="form-grid">
               <div class="form-group">
                 <label for="name">Name:</label>
@@ -667,6 +668,7 @@
                 <label for="examDate">Exam Date:</label>
                 <input type="date" id="examDate" name="exam_date">
               </div>
+              <!-- Hidden record_id field -->
               <input type="hidden" id="personalRecordId" name="record_id">
               <div class="form-actions col-span-full">
                 <p id="personalFormSaveStatus" class="text-sm text-gray-500 mr-auto flex items-center"></p>
@@ -684,115 +686,115 @@
             <form id="progressionsForm" class="form-grid">
                 <div class="form-group">
                     <label for="codeNumber">Code Number:</label>
-                    <input type="text" id="codeNumber" name="code_number">
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="codeNumber" name="code_number" value="Yes">
+                        <span class="checkbox-label">Completed</span>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label for="client">Client Name:</label>
-                    <input type="text" id="client" name="client">
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="client" name="client" value="Yes">
+                        <span class="checkbox-label">Completed</span>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label for="passLicense">Pass License:</label>
-                    <select id="passLicense" name="pass_license">
-                        <option value="">Select</option>
-                        <option value="Yes">Yes</option>
-                        <option value="No">No</option>
-                    </select>
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="passLicense" name="pass_license" value="Yes">
+                        <span class="checkbox-label">Yes</span>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label for="businessPartnerPlan">Business Partner Plan:</label>
-                    <select id="businessPartnerPlan" name="business_partner_plan">
-                        <option value="">Select</option>
-                        <option value="Yes">Yes</option>
-                        <option value="No">No</option>
-                    </select>
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="businessPartnerPlan" name="business_partner_plan" value="Yes">
+                        <span class="checkbox-label">Yes</span>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label for="licensedAppointed">Licensed Appointed:</label>
-                    <select id="licensedAppointed" name="licensed_appointed">
-                        <option value="">Select</option>
-                        <option value="Yes">Yes</option>
-                        <option value="No">No</option>
-                    </select>
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="licensedAppointed" name="licensed_appointed" value="Yes">
+                        <span class="checkbox-label">Yes</span>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label for="fieldTrainings10">Field Trainings (10):</label>
-                    <input type="number" id="fieldTrainings10" name="field_trainings_10" min="0">
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="fieldTrainings10" name="field_trainings_10" value="Yes">
+                        <span class="checkbox-label">Completed</span>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label for="associatePromotion">Associate Promotion:</label>
-                    <select id="associatePromotion" name="associate_promotion">
-                        <option value="">Select</option>
-                        <option value="Yes">Yes</option>
-                        <option value="No">No</option>
-                    </select>
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="associatePromotion" name="associate_promotion" value="Yes">
+                        <span class="checkbox-label">Yes</span>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label for="netLicense">Net License:</label>
-                    <input type="text" id="netLicense" name="net_license">
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="netLicense" name="net_license" value="Yes">
+                        <span class="checkbox-label">Yes</span>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label for="completeLaserFund">Complete Laser Fund:</label>
-                    <select id="completeLaserFund" name="complete_laser_fund">
-                        <option value="">Select</option>
-                        <option value="Yes">Yes</option>
-                        <option value="No">No</option>
-                    </select>
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="completeLaserFund" name="complete_laser_fund" value="Yes">
+                        <span class="checkbox-label">Yes</span>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label for="cftInProgress">CFT In Progress:</label>
-                    <select id="cftInProgress" name="cft_in_progress">
-                        <option value="">Select</option>
-                        <option value="Yes">Yes</option>
-                        <option value="No">No</option>
-                    </select>
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="cftInProgress" name="cft_in_progress" value="Yes">
+                        <span class="checkbox-label">Yes</span>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label for="certifiedFieldTrainer">Certified Field Trainer:</label>
-                    <select id="certifiedFieldTrainer" name="certified_field_trainer">
-                        <option value="">Select</option>
-                        <option value="Yes">Yes</option>
-                        <option value="No">No</option>
-                    </select>
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="certifiedFieldTrainer" name="certified_field_trainer" value="Yes">
+                        <span class="checkbox-label">Yes</span>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label for="eliteTrainer">Elite Trainer:</label>
-                    <select id="eliteTrainer" name="elite_trainer">
-                        <option value="">Select</option>
-                        <option value="Yes">Yes</option>
-                        <option value="No">No</option>
-                    </select>
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="eliteTrainer" name="elite_trainer" value="Yes">
+                        <span class="checkbox-label">Yes</span>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label for="marketingDirector">Marketing Director:</label>
-                    <select id="marketingDirector" name="marketing_director">
-                        <option value="">Select</option>
-                        <option value="Yes">Yes</option>
-                        <option value="No">No</option>
-                    </select>
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="marketingDirector" name="marketing_director" value="Yes">
+                        <span class="checkbox-label">Yes</span>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label for="watch50000">Watch 50,000:</label>
-                    <select id="watch50000" name="watch_50000">
-                        <option value="">Select</option>
-                        <option value="Yes">Yes</option>
-                        <option value="No">No</option>
-                    </select>
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="watch50000" name="watch_50000" value="Yes">
+                        <span class="checkbox-label">Yes</span>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label for="ring100000">Ring 100,000:</label>
-                    <select id="ring100000" name="ring_100000">
-                        <option value="">Select</option>
-                        <option value="Yes">Yes</option>
-                        <option value="No">No</option>
-                    </select>
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="ring100000" name="ring_100000" value="Yes">
+                        <span class="checkbox-label">Yes</span>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label for="executiveMarketingDirector">Executive Marketing Director:</label>
-                    <select id="executiveMarketingDirector" name="executive_marketing_director">
-                        <option value="">Select</option>
-                        <option value="Yes">Yes</option>
-                        <option value="No">No</option>
-                    </select>
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="executiveMarketingDirector" name="executive_marketing_director" value="Yes">
+                        <span class="checkbox-label">Yes</span>
+                    </div>
                 </div>
                 <input type="hidden" id="progressionsRecordId" name="record_id">
                 <div class="form-actions col-span-full">
@@ -1053,6 +1055,62 @@
     </div>
   </div>
 
+  <!-- User Management Form (Admin Only) -->
+  <div id="user-management-form" class="page-content hidden">
+    <div class="form-container">
+      <h2 class="page-title">User Management</h2>
+      <p class="page-description">Create and manage user accounts.</p>
+      
+      <!-- Create User Form -->
+      <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+        <h3 class="text-xl font-semibold mb-4">Create New User</h3>
+        <form id="createUserForm" class="form-grid">
+          <div class="form-group">
+            <label for="newAgentName">Agent Name:</label>
+            <input type="text" id="newAgentName" name="agentName" required>
+          </div>
+          <div class="form-group">
+            <label for="newPassword">Password:</label>
+            <input type="password" id="newPassword" name="password" required>
+          </div>
+          <div class="form-group">
+            <label for="newRole">Role:</label>
+            <select id="newRole" name="role" required>
+              <option value="user">User</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="newAvatarUrl">Avatar URL (Optional):</label>
+            <input type="text" id="newAvatarUrl" name="avatarUrl" placeholder="https://example.com/avatar.jpg">
+          </div>
+          <div class="form-actions col-span-full">
+            <button type="submit" class="btn btn-primary">Create User</button>
+          </div>
+        </form>
+      </div>
+      
+      <!-- User List -->
+      <div class="bg-white p-6 rounded-lg shadow-md">
+        <h3 class="text-xl font-semibold mb-4">Existing Users</h3>
+        <div class="data-table-container">
+          <table id="usersTable" class="data-table">
+            <thead>
+              <tr>
+                <th>Agent Name</th>
+                <th>Role</th>
+                <th>Last Updated</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- User rows will be populated here -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script src="script.js"></script>
 </body>

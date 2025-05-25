@@ -6,107 +6,51 @@
 function checkOrCreateSheets() {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheetsConfig = [
-      {
-        name: 'Personal Details',
-        headers: ['Name', 'Date', 'Agent ID', 'State', 'NPN', 'Number', 'Email', 'Children', 'Exam Date', 'Record ID']
-      },
-      {
-        name: 'System Progressions',
-        headers: [
-          'Code Number', 'Client', 'Pass License', 'Business Partner Plan', 'Licensed Appointed',
-          'Field Trainings 10', 'Associate Promotion', 'Net License', 'Complete Laser Fund',
-          'CFT In Progress', 'Certified Field Trainer', 'Elite Trainer', 'Marketing Director',
-          'Watch 50000', 'Ring 100000', 'Executive Marketing Director', 'Record ID'
-        ]
-      },
-      {
-        name: 'Dreams List',
-        headers: ['Time Frame', 'Dream', 'Why', 'Record ID']
-      },
-      {
-        name: 'Expenses to Income Report',
-        headers: ['Item', 'Amount', 'Category', 'Date', 'Description', 'Agent', 'Record ID']
-      },
-      {
-        name: 'Potential Business Partners',
-        headers: ['Name', 'Contact', 'Email', 'Status', 'Notes', 'Agent', 'Record ID']
-      },
-      {
-        name: 'Potential Field Trainings',
-        headers: ['Agent', 'Client Name', 'Date', 'Type of Training', 'Outcome', 'Notes', 'Record ID']
-      },
-      {
-        name: 'Agents', // Sheet for user login credentials and roles
-        headers: ['agentName', 'password', 'avatarUrl', 'lastUpdated', 'role']
-      },
-      {
-        name: 'Raw Form', // A generic sheet for raw data if needed
-        headers: ['Timestamp', 'Form Name', 'Agent', 'Data']
-      }
-    ];
-
-    sheetsConfig.forEach(config => {
-      let sheet = ss.getSheetByName(config.name);
-      if (!sheet) {
-        // Only create the sheet if it doesn't exist
-        sheet = ss.insertSheet(config.name);
-        // Set headers only for new sheets
-        sheet.getRange(1, 1, 1, config.headers.length).setValues([config.headers]);
-        sheet.autoResizeColumns(1, config.headers.length);
-        Logger.log(`Created new sheet: ${config.name} with headers: ${config.headers.join(', ')}`);
+    const sheets = ss.getSheets();
+    const sheetNames = sheets.map(sheet => sheet.getName());
+    
+    // Define all required sheets and their headers
+    const requiredSheets = {
+      'Personal Details': ['record_id', 'agent', 'name', 'date', 'agent_id', 'state', 'npn', 'number', 'email', 'children', 'exam_date'],
+      'System Progressions': ['record_id', 'agent', 'code_number', 'client', 'pass_license', 'business_partner_plan', 'licensed_appointed', 'field_trainings_10', 'associate_promotion', 'net_license', 'complete_laser_fund', 'cft_in_progress', 'certified_field_trainer', 'elite_trainer', 'marketing_director', 'watch_50000', 'ring_100000', 'executive_marketing_director'],
+      'Dreams List': ['record_id', 'agent', 'time_frame', 'dream', 'why'],
+      'Expenses to Income Report': ['record_id', 'agent', 'item', 'amount', 'category', 'date', 'description'],
+      'Potential Business Partners': ['record_id', 'agent', 'name', 'contact', 'email', 'status', 'notes'],
+      'Potential Field Trainings': ['record_id', 'agent', 'client_name', 'date', 'type_of_training', 'outcome', 'notes'],
+      'Agents': ['agentName', 'password', 'role', 'lastUpdated', 'avatarUrl']
+    };
+    
+    // Create any missing sheets and add headers
+    let sheetsCreated = 0;
+    for (const [sheetName, headers] of Object.entries(requiredSheets)) {
+      if (!sheetNames.includes(sheetName)) {
+        const newSheet = ss.insertSheet(sheetName);
+        newSheet.appendRow(headers);
+        sheetsCreated++;
+        
+        // If it's the Agents sheet and it's new, add a default admin user
+        if (sheetName === 'Agents') {
+          newSheet.appendRow(['admin', 'admin123', 'admin', new Date().toISOString(), '']);
+        }
       } else {
-        Logger.log(`Sheet already exists: ${config.name}. Verifying headers.`);
-        const currentHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+        // Check if headers match and update if needed
+        const sheet = ss.getSheetByName(sheetName);
+        const existingHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
         
-        // Special handling for Dreams List to update its structure if it has the old headers
-        if (config.name === 'Dreams List') {
-          // Check for old Dreams List headers
-          if (currentHeaders[0] === 'Dream Name' && currentHeaders[1] === 'Target Date' && currentHeaders[2] === 'Estimated Cost') {
-            Logger.log('Migrating Dreams List headers and data.');
-            // Create a new header row with the correct structure
-            sheet.getRange(1, 1, 1, config.headers.length).setValues([config.headers]);
-            // If there's data, we need to migrate it
-            if (sheet.getLastRow() > 1) {
-              const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
-              const newData = data.map(row => {
-                return [
-                  '', // Time Frame (new column)
-                  row[0], // Dream Name (old Dream Name)
-                  '', // Why (new column)
-                  row[3] || '' // Record ID
-                ];
-              });
-              // Clear existing data
-              if (sheet.getLastRow() > 1) {
-                sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).clearContent();
-              }
-              // Write the migrated data
-              if (newData.length > 0) {
-                sheet.getRange(2, 1, newData.length, config.headers.length).setValues(newData);
-              }
-              Logger.log('Dreams List data migrated.');
-            }
-          }
-        }
-        
-        // Add any missing headers to existing sheets
-        const missingHeaders = config.headers.filter(h => !currentHeaders.includes(h));
-        if (missingHeaders.length > 0) {
-          let lastAddedColumn = sheet.getLastColumn();
-          missingHeaders.forEach(header => {
-            lastAddedColumn++;
-            sheet.getRange(1, lastAddedColumn).setValue(header);
-            Logger.log(`Added missing header to ${config.name}: ${header}`);
-          });
-          sheet.autoResizeColumns(1, lastAddedColumn);
+        // If headers don't match or are missing, update them
+        if (existingHeaders.length < headers.length) {
+          sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
         }
       }
-    });
-    return { status: 'success', message: 'Sheets verified and updated without data loss' };
+    }
+    
+    return { 
+      status: 'success', 
+      message: sheetsCreated > 0 ? `Created ${sheetsCreated} new sheets.` : 'All required sheets already exist.' 
+    };
   } catch (error) {
     Logger.log('Error in checkOrCreateSheets: %s', error.toString());
-    return { status: 'error', message: 'Error checking sheets: ' + error.toString() };
+    return { status: 'error', message: 'Error creating sheets: ' + error.toString() };
   }
 }
 
@@ -122,37 +66,56 @@ function jsonpResponse(data, callback) {
 
 function doGet(e) {
   try {
+    const action = e.parameter.action;
     const callback = e.parameter.callback;
-
-    if (e.parameter.action === 'login') {
-      const agentName = e.parameter.agent;
-      const password = e.parameter.password;
-      const result = verifyLogin(agentName, password);
-      return jsonpResponse(result, callback);
+    
+    // Handle initialization request
+    if (e.parameter.init === 'true') {
+      return initializeSheets(e);
     }
-
-    if (e.parameter.action === 'getAgentInfo') {
-        const agentName = e.parameter.agent;
-        const result = getAgentInfo(agentName);
-        return jsonpResponse(result, callback);
-    }
-
-    if (e.parameter.action === 'getFormData') {
+    
+    // Handle form data retrieval
+    if (action === 'getFormData') {
       return getFormData(e);
     }
     
-    if (e.parameter.init) {
-      // This will be triggered by your frontend's initSheets() call.
-      // It calls checkOrCreateSheets to set up all necessary tabs and headers.
-      const result = checkOrCreateSheets();
-      return jsonpResponse(result, callback);
+    // Handle user management actions
+    if (action === 'getUsers') {
+      return getUsers(e);
     }
     
-    // Default response if no action is specified
-    return jsonpResponse({ status: 'error', message: 'No action specified' }, callback);
+    // Handle getting all personal details for admin
+    if (action === 'getAllPersonalDetails') {
+      const result = getAllPersonalDetails();
+      Logger.log('getAllPersonalDetails result: ' + JSON.stringify(result));
+      return ContentService.createTextOutput(
+        callback + '(' + JSON.stringify(result) + ');'
+      ).setMimeType(ContentService.MimeType.JAVASCRIPT);
+    }
+    
+    // Handle getting personal details for a specific agent
+    if (action === 'getAgentPersonalDetails') {
+      const agentName = e.parameter.agent;
+      const result = getAgentPersonalDetails(agentName);
+      return ContentService.createTextOutput(
+        callback + '(' + JSON.stringify(result) + ');'
+      ).setMimeType(ContentService.MimeType.JAVASCRIPT);
+    }
+    
+    // Handle login
+    if (action === 'login') {
+      return handleLogin(e);
+    }
+    
+    // Default response if no action specified
+    return ContentService.createTextOutput(
+      e.parameter.callback + '(' + JSON.stringify({ status: 'error', message: 'No action specified' }) + ');'
+    ).setMimeType(ContentService.MimeType.JAVASCRIPT);
   } catch (error) {
     Logger.log('Error in doGet: %s', error.toString());
-    return jsonpResponse({ status: 'error', message: 'Server error: ' + error.toString() }, e.parameter.callback);
+    return ContentService.createTextOutput(
+      e.parameter.callback + '(' + JSON.stringify({ status: 'error', message: 'Server error: ' + error.toString() }) + ');'
+    ).setMimeType(ContentService.MimeType.JAVASCRIPT);
   }
 }
 
@@ -168,17 +131,19 @@ function doPost(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
 
-    const sheetName = data.sheetName;
+    Logger.log('Received POST data: ' + JSON.stringify(data));
+
     const action = data.action; // Get the action from the request
-
-    if (!sheetName && action !== 'bulkUpdateEntries') { // For bulkUpdateEntries, sheetName might be implied or passed differently
-      return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: 'Missing sheetName' }))
-        .setMimeType(ContentService.MimeType.JSON);
-    }
-
+    
     // Handle bulk updates for multi-entry forms
     if (action === 'bulkUpdateEntries') {
         return handleBulkUpdateEntries(data);
+    }
+
+    const sheetName = data.sheetName;
+    if (!sheetName) {
+      return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: 'Missing sheetName' }))
+        .setMimeType(ContentService.MimeType.JSON);
     }
 
     // Existing logic for single-entry forms
@@ -325,8 +290,10 @@ function getAgentInfo(agentName) {
 function getFormData(e) {
   try {
     const sheetName = e.parameter.sheetName;
-    const sessionId = e.parameter.sessionId; // This is the agentName in our current setup
+    const sessionId = e.parameter.sessionId || e.parameter.agent; // Accept both sessionId and agent parameters
     const callback = e.parameter.callback;
+
+    Logger.log(`getFormData called with sheetName=${sheetName}, sessionId/agent=${sessionId}`);
 
     if (!sheetName) {
       return jsonpResponse({ status: 'error', message: 'Missing sheetName' }, callback);
@@ -353,144 +320,217 @@ function getFormData(e) {
     if (sheet.getLastRow() > 1) { // Check if there's any data beyond headers
       const dataRange = sheet.getRange(2, 1, sheet.getLastRow() - 1, lastColumn);
       const values = dataRange.getValues();
-
+      
+      // Find the agent column index for filtering
+      const agentColumnIndex = headers.findIndex(header => 
+        header.toLowerCase() === 'agent' || 
+        header.toLowerCase() === 'agentname');
+      
+      // Find the record_id column index
+      const recordIdColumnIndex = headers.findIndex(header => 
+        header.toLowerCase() === 'record id' || 
+        header.toLowerCase() === 'record_id');
+      
+      Logger.log(`Getting data for ${sheetName}, agent: ${sessionId}, isMultiEntry: ${isMultiEntryForm}`);
+      Logger.log(`Agent column index: ${agentColumnIndex}, Record ID column index: ${recordIdColumnIndex}`);
+      
       if (isMultiEntryForm) {
+        // Multi-entry form: return all entries for this agent
         const matchingEntries = [];
-        const agentColumnIndex = headers.indexOf('Agent'); // Assuming multi-entry forms have an 'Agent' column to link to session ID
         
-        // Ensure that the 'Agent' column exists for multi-entry forms
-        if (agentColumnIndex === -1 && sheetName !== 'Raw Form') { // Raw Form is generic and doesn't need 'Agent' column
-            Logger.log(`Warning: Multi-entry sheet '${sheetName}' does not have an 'Agent' column.`);
-            // Continue as if no agent filter if column is missing
-        }
-
         for (let i = 0; i < values.length; i++) {
           const row = values[i];
-          // If 'Agent' column exists and matches sessionId, or if it's Raw Form, include the entry
-          if ((agentColumnIndex !== -1 && row[agentColumnIndex] == sessionId) || sheetName === 'Raw Form') {
+          // If 'Agent' column exists and matches sessionId, include the entry
+          if (agentColumnIndex !== -1 && row[agentColumnIndex] == sessionId) {
             const entryData = {};
             headers.forEach((header, index) => {
               const key = header.replace(/ /g, '_').toLowerCase();
               entryData[key] = row[index] !== undefined ? row[index] : '';
             });
             matchingEntries.push(entryData);
+            Logger.log(`Found matching entry for agent ${sessionId}: ${JSON.stringify(entryData)}`);
           }
         }
-        formData = { entries: matchingEntries }; // Return as an array of entries
+        
+        Logger.log(`Total matching entries found: ${matchingEntries.length}`);
+        return jsonpResponse({ entries: matchingEntries }, callback);
       } else {
         // Single-entry form: find the record that matches the sessionId (Agent Name)
-        const recordIdColumnIndex = headers.indexOf('Record ID');
+        // For single-entry forms, we now use a consistent record_id format: agentName_formId
+        const formId = getFormIdFromSheetName(sheetName);
+        const expectedRecordIdPrefix = `${sessionId}_${formId}`;
         
+        let found = false;
         for (let i = 0; i < values.length; i++) {
           const row = values[i];
-          // For single entry forms, the 'Record ID' is expected to be `agentName_formId_timestamp_random`
-          // We need to match the start of the Record ID with the agentName
-          if (recordIdColumnIndex !== -1 && row[recordIdColumnIndex] && String(row[recordIdColumnIndex]).startsWith(sessionId + '_')) {
+          
+          // First try to match by record_id
+          if (recordIdColumnIndex !== -1 && row[recordIdColumnIndex]) {
+            const recordId = String(row[recordIdColumnIndex]);
+            if (recordId === expectedRecordIdPrefix || recordId.startsWith(`${sessionId}_${formId}`)) {
+              headers.forEach((header, index) => {
+                const key = header.replace(/ /g, '_').toLowerCase();
+                formData[key] = row[index] !== undefined ? row[index] : '';
+              });
+              found = true;
+              Logger.log(`Found matching record for agent ${sessionId} with record_id ${recordId}`);
+              break; // Found the record for this agent, stop
+            }
+          }
+          
+          // If no match by record_id, try matching by agent name
+          if (!found && agentColumnIndex !== -1 && row[agentColumnIndex] == sessionId) {
             headers.forEach((header, index) => {
               const key = header.replace(/ /g, '_').toLowerCase();
               formData[key] = row[index] !== undefined ? row[index] : '';
             });
-            break; // Found the record for this agent, stop
+            found = true;
+            Logger.log(`Found matching record for agent ${sessionId} by agent name`);
+            break;
           }
         }
+        
+        if (!found) {
+          Logger.log(`No matching record found for agent ${sessionId} in ${sheetName}`);
+        }
+        
+        return jsonpResponse(formData, callback);
       }
+    } else {
+      Logger.log(`No data found in sheet ${sheetName} beyond headers`);
+      return jsonpResponse(isMultiEntryForm ? { entries: [] } : {}, callback);
     }
-    
-    // If no data was found for single-entry forms, formData will be empty.
-    // The frontend handles generating a new Record ID in this case.
-    // For multi-entry, formData.entries will be an empty array if no matches.
-    return jsonpResponse({ status: 'success', formData: formData }, callback);
   } catch (error) {
     Logger.log('Error in getFormData: %s', error.toString());
-    return jsonpResponse({ status: 'error', message: 'Server error: ' + error.toString() }, e.parameter.callback);
+    return jsonpResponse({ status: 'error', message: 'Server error: ' + error.toString() }, callback);
   }
 }
 
 // --- Multi-Entry Form Handling (handleBulkUpdateEntries) ---
 function handleBulkUpdateEntries(data) {
-    const agent = data.agent; // Agent name for filtering
-    const entries = data.entries; // Array of entry objects
-    const formId = data.formId; // e.g., 'expensesForm', 'dreamsForm'
-    const sheetName = getSheetNameFromFormId(formId);
+    try {
+        const agent = data.agent; // Agent name for filtering
+        const entries = data.entries; // Array of entry objects
+        const formId = data.formId; // e.g., 'expensesForm', 'dreamsForm'
+        const sheetName = getSheetNameFromFormId(formId);
 
-    if (!agent || !entries || !sheetName) {
-        return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: 'Missing agent, entries, or sheetName for bulk update' }))
-            .setMimeType(ContentService.MimeType.JSON);
-    }
+        Logger.log(`Handling bulk update for ${formId} (${sheetName}) with ${entries.length} entries for agent ${agent}`);
 
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheet = ss.getSheetByName(sheetName);
-    if (!sheet) {
-        return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: 'Sheet not found: ' + sheetName }))
-            .setMimeType(ContentService.MimeType.JSON);
-    }
+        if (!agent || !entries || !sheetName) {
+            return ContentService.createTextOutput(JSON.stringify({ 
+                status: 'error', 
+                message: 'Missing agent, entries, or sheetName for bulk update' 
+            })).setMimeType(ContentService.MimeType.JSON);
+        }
 
-    const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-    const recordIdColIndex = headers.indexOf('Record ID');
-    const agentColIndex = headers.indexOf('Agent');
+        const ss = SpreadsheetApp.getActiveSpreadsheet();
+        const sheet = ss.getSheetByName(sheetName);
+        if (!sheet) {
+            return ContentService.createTextOutput(JSON.stringify({ 
+                status: 'error', 
+                message: 'Sheet not found: ' + sheetName 
+            })).setMimeType(ContentService.MimeType.JSON);
+        }
 
-    if (recordIdColIndex === -1 || agentColIndex === -1) {
-        return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: `Required columns (Record ID, Agent) not found in ${sheetName} sheet.` }))
-            .setMimeType(ContentService.MimeType.JSON);
-    }
+        const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+        
+        // Find the record_id column index
+        const recordIdColIndex = headers.findIndex(header => 
+            header.toLowerCase() === 'record id' || 
+            header.toLowerCase() === 'record_id');
+            
+        // Find the agent column index
+        const agentColIndex = headers.findIndex(header => 
+            header.toLowerCase() === 'agent' || 
+            header.toLowerCase() === 'agentname');
 
-    const existingData = sheet.getLastRow() > 1 ? sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues() : [];
-    const updatedRows = [];
-    const newRows = [];
-    const recordIdsToKeep = new Set(); // To track which records should remain in the sheet
+        if (recordIdColIndex === -1) {
+            // If no Record ID column exists, add it
+            sheet.getRange(1, headers.length + 1).setValue('Record ID');
+            headers.push('Record ID');
+        }
+        
+        if (agentColIndex === -1) {
+            // If no Agent column exists, add it
+            sheet.getRange(1, headers.length + 1).setValue('Agent');
+            headers.push('Agent');
+        }
 
-    entries.forEach(entry => {
-        const recordId = entry.record_id;
-        recordIdsToKeep.add(recordId); // Mark this record ID as one to keep
+        const existingData = sheet.getLastRow() > 1 ? 
+            sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues() : [];
+        
+        const updatedRows = [];
+        const newRows = [];
+        const recordIdsToKeep = new Set(); // To track which records should remain in the sheet
 
-        const rowData = headers.map(header => {
-            const key = header.replace(/ /g, '_').toLowerCase();
-            if (key === 'record_id') return recordId;
-            if (key === 'agent') return agent; // Ensure agent name is saved with the entry
-            return entry[key] !== undefined ? entry[key] : '';
+        entries.forEach(entry => {
+            const recordId = entry.record_id;
+            recordIdsToKeep.add(recordId); // Mark this record ID as one to keep
+
+            const rowData = headers.map(header => {
+                const key = header.replace(/ /g, '_').toLowerCase();
+                if (key === 'record_id') return recordId;
+                if (key === 'agent') return agent; // Ensure agent name is saved with the entry
+                return entry[key] !== undefined ? entry[key] : '';
+            });
+
+            let found = false;
+            for (let i = 0; i < existingData.length; i++) {
+                if (existingData[i][recordIdColIndex] === recordId) {
+                    updatedRows.push({ rowIndex: i + 2, data: rowData }); // +2 for 1-based row index and header row
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                newRows.push(rowData);
+            }
         });
 
-        let found = false;
-        for (let i = 0; i < existingData.length; i++) {
-            if (existingData[i][recordIdColIndex] === recordId) {
-                updatedRows.push({ rowIndex: i + 2, data: rowData }); // +2 for 1-based row index and header row
-                found = true;
-                break;
+        // Perform updates
+        updatedRows.forEach(rowInfo => {
+            sheet.getRange(rowInfo.rowIndex, 1, 1, rowInfo.data.length).setValues([rowInfo.data]);
+            Logger.log(`Updated row ${rowInfo.rowIndex} with data: ${JSON.stringify(rowInfo.data)}`);
+        });
+
+        // Perform new row appends
+        if (newRows.length > 0) {
+            sheet.getRange(sheet.getLastRow() + 1, 1, newRows.length, headers.length).setValues(newRows);
+            Logger.log(`Added ${newRows.length} new rows`);
+        }
+
+        // Delete rows that are no longer in the submitted entries for the current agent
+        // Iterate backwards to avoid issues with shifting row indices during deletion
+        let deletedCount = 0;
+        for (let i = existingData.length - 1; i >= 0; i--) {
+            const existingRecordId = existingData[i][recordIdColIndex];
+            const existingAgent = existingData[i][agentColIndex];
+
+            // Only consider deleting records belonging to the current agent
+            if (existingAgent == agent && !recordIdsToKeep.has(existingRecordId)) {
+                sheet.deleteRow(i + 2); // +2 for 1-based row index and header row
+                deletedCount++;
+                Logger.log(`Deleted row ${i + 2} with Record ID: ${existingRecordId} for agent: ${agent}`);
             }
         }
-        if (!found) {
-            newRows.push(rowData);
-        }
-    });
 
-    // Perform updates
-    updatedRows.forEach(rowInfo => {
-        sheet.getRange(rowInfo.rowIndex, 1, 1, rowInfo.data.length).setValues([rowInfo.data]);
-    });
-
-    // Perform new row appends
-    if (newRows.length > 0) {
-        sheet.getRange(sheet.getLastRow() + 1, 1, newRows.length, newRows[0].length).setValues(newRows);
+        Logger.log(`Bulk update for ${sheetName} completed. Updated: ${updatedRows.length}, New: ${newRows.length}, Deleted: ${deletedCount} for agent ${agent}.`);
+        
+        return ContentService.createTextOutput(JSON.stringify({ 
+            status: 'success', 
+            message: 'Bulk data updated successfully',
+            updated: updatedRows.length,
+            added: newRows.length,
+            deleted: deletedCount
+        })).setMimeType(ContentService.MimeType.JSON);
+    } catch (error) {
+        Logger.log('Error in handleBulkUpdateEntries: %s', error.toString());
+        return ContentService.createTextOutput(JSON.stringify({ 
+            status: 'error', 
+            message: 'Server error: ' + error.toString() 
+        })).setMimeType(ContentService.MimeType.JSON);
     }
-
-    // Delete rows that are no longer in the submitted entries for the current agent
-    // Iterate backwards to avoid issues with shifting row indices during deletion
-    for (let i = existingData.length - 1; i >= 0; i--) {
-        const existingRecordId = existingData[i][recordIdColIndex];
-        const existingAgent = existingData[i][agentColIndex];
-
-        // Only consider deleting records belonging to the current agent
-        if (existingAgent == agent && !recordIdsToKeep.has(existingRecordId)) {
-            sheet.deleteRow(i + 2); // +2 for 1-based row index and header row
-            Logger.log(`Deleted row ${i + 2} with Record ID: ${existingRecordId} for agent: ${agent}`);
-        }
-    }
-
-    Logger.log(`Bulk update for ${sheetName} completed. Updated: ${updatedRows.length}, New: ${newRows.length}, Deleted: (count from log above) for agent ${agent}.`);
-    return ContentService.createTextOutput(JSON.stringify({ status: 'success', message: 'Bulk data updated successfully' }))
-        .setMimeType(ContentService.MimeType.JSON);
 }
-
 
 // Helper function to map formId to sheetName for the new bulk update
 function getSheetNameFromFormId(formId) {
@@ -501,4 +541,147 @@ function getSheetNameFromFormId(formId) {
         'clientsForm': 'Potential Field Trainings'
     };
     return map[formId];
+}
+
+// Helper function to get formId from sheetName
+function getFormIdFromSheetName(sheetName) {
+  const map = {
+    'Personal Details': 'personalForm',
+    'System Progressions': 'progressionsForm',
+    'Dreams List': 'dreamsForm',
+    'Expenses to Income Report': 'expensesForm',
+    'Potential Business Partners': 'partnersForm',
+    'Potential Field Trainings': 'clientsForm'
+  };
+  return map[sheetName] || '';
+}
+
+// Get all personal details for admin view
+function getAllPersonalDetails() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName('Personal Details');
+    if (!sheet) {
+      Logger.log('Personal Details sheet not found');
+      return { status: 'error', message: 'Personal Details sheet not found' };
+    }
+    
+    const lastRow = sheet.getLastRow();
+    const lastColumn = sheet.getLastColumn();
+    
+    Logger.log(`Personal Details sheet has ${lastRow} rows and ${lastColumn} columns`);
+    
+    if (lastRow <= 1) { // Only headers, no data
+      Logger.log('No data found in Personal Details sheet (only headers)');
+      return { status: 'success', entries: [] };
+    }
+    
+    const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+    Logger.log('Headers: ' + JSON.stringify(headers));
+    
+    const data = sheet.getRange(2, 1, lastRow - 1, lastColumn).getValues();
+    Logger.log(`Retrieved ${data.length} rows of data`);
+    
+    const entries = data.map(row => {
+      const entry = {};
+      headers.forEach((header, index) => {
+        const key = header.toLowerCase().replace(/ /g, '_');
+        entry[key] = row[index];
+      });
+      return entry;
+    });
+    
+    Logger.log(`Processed ${entries.length} entries`);
+    return { status: 'success', entries: entries };
+  } catch (error) {
+    Logger.log('Error in getAllPersonalDetails: %s', error.toString());
+    return { status: 'error', message: 'Error getting personal details: ' + error.toString() };
+  }
+}
+
+// Direct function to get personal details for a specific agent
+function getAgentPersonalDetails(agentName) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName('Personal Details');
+    if (!sheet) {
+      return { error: 'Personal Details sheet not found' };
+    }
+    
+    const lastRow = sheet.getLastRow();
+    const lastColumn = sheet.getLastColumn();
+    
+    if (lastRow <= 1) { // Only headers, no data
+      return { error: 'No personal details found' };
+    }
+    
+    const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+    const data = sheet.getRange(2, 1, lastRow - 1, lastColumn).getValues();
+    
+    // Find the agent column index
+    const agentColIndex = headers.findIndex(header => 
+      header.toLowerCase() === 'agent' || 
+      header.toLowerCase() === 'agentname');
+    
+    if (agentColIndex === -1) {
+      return { error: 'Agent column not found in Personal Details sheet' };
+    }
+    
+    // Find the row for the specified agent
+    for (let i = 0; i < data.length; i++) {
+      if (data[i][agentColIndex] === agentName) {
+        const entry = {};
+        headers.forEach((header, index) => {
+          const key = header.toLowerCase().replace(/ /g, '_');
+          entry[key] = data[i][index];
+        });
+        return entry;
+      }
+    }
+    
+    return { error: 'No personal details found for agent: ' + agentName };
+  } catch (error) {
+    Logger.log('Error in getAgentPersonalDetails: %s', error.toString());
+    return { error: 'Error getting agent personal details: ' + error.toString() };
+  }
+}
+
+// Function to initialize sheets
+function initializeSheets(e) {
+  try {
+    const result = checkOrCreateSheets();
+    return ContentService.createTextOutput(
+      e.parameter.callback + '(' + JSON.stringify(result) + ');'
+    ).setMimeType(ContentService.MimeType.JAVASCRIPT);
+  } catch (error) {
+    Logger.log('Error in initializeSheets: %s', error.toString());
+    return ContentService.createTextOutput(
+      e.parameter.callback + '(' + JSON.stringify({ status: 'error', message: 'Server error: ' + error.toString() }) + ');'
+    ).setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+}
+
+// Handle login request
+function handleLogin(e) {
+  try {
+    const agentName = e.parameter.agent;
+    const password = e.parameter.password;
+    const callback = e.parameter.callback;
+    
+    if (!agentName || !password) {
+      return ContentService.createTextOutput(
+        callback + '(' + JSON.stringify({ error: 'Agent name and password are required.' }) + ');'
+      ).setMimeType(ContentService.MimeType.JAVASCRIPT);
+    }
+    
+    const result = verifyLogin(agentName, password);
+    return ContentService.createTextOutput(
+      callback + '(' + JSON.stringify(result) + ');'
+    ).setMimeType(ContentService.MimeType.JAVASCRIPT);
+  } catch (error) {
+    Logger.log('Error in handleLogin: %s', error.toString());
+    return ContentService.createTextOutput(
+      e.parameter.callback + '(' + JSON.stringify({ error: 'Server error: ' + error.toString() }) + ');'
+    ).setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
 }
