@@ -39,13 +39,13 @@ function setupRoleBasedAccess() {
     // Make all links visible first
     link.style.display = '';
     
-    // For regular users, hide specific links
+    // For regular users, only hide user-management
     if (!isAdmin) {
-      if (page !== 'dashboard' && 
-          page !== 'personal-details-form' && 
-          page !== 'potential-field-trainings-form') {
+      if (page === 'user-management') {
         link.style.display = 'none';
         console.log('Hiding sidebar link:', page);
+      } else {
+        console.log('Showing sidebar link for regular user:', page);
       }
     } else {
       console.log('Showing sidebar link for admin:', page);
@@ -71,7 +71,7 @@ function toggleAutoSave() {
 }
 
 // !!! IMPORTANT: REPLACE 'YOUR_DEPLOYMENT_ID_HERE' with your actual Google Apps Script Web App Deployment ID
-const scriptId = 'AKfycbz5HbV--Cs4W3PXQGU_BqVU_WAK01Ze_bZarugfEJZYPwSrLRuk6ybKmyutmj9Pamwtyw'; // Replace with your actual script ID
+const scriptId = 'AKfycbxsY5P4Qg54N_BoHzKRu0bEyFeBUkg06TRqaxIB45figk5BpbW4uX3Wu8RettDM6FMT6g'; // Replace with your actual script ID
 
 const formSheetMap = {
   'personalForm': 'Personal Details',
@@ -234,44 +234,6 @@ function navigateTo(pageId) {
     setupProgressionsForm();
   }
   
-  // Update sidebar active link
-  const sidebarLinks = document.querySelectorAll('.sidebar-menu a');
-  sidebarLinks.forEach(link => link.classList.remove('active'));
-  
-  // Map page IDs back to sidebar data-page values
-  const sidebarPageIdMap = {
-    'dashboardPageContent': 'dashboard',
-    'personal-details-form': 'personal-details',
-    'system-progressions-form': 'system-progressions',
-    'dreams-list-form': 'dreams-list',
-    'expenses-to-income-report-form': 'expenses-to-income-report',
-    'potential-business-partners-form': 'potential-business-partners',
-    'potential-field-trainings-form': 'potential-field-trainings',
-    'user-management-form': 'user-management'
-  };
-  
-  // Get the sidebar page ID
-  const sidebarPageId = sidebarPageIdMap[pageId] || pageId.replace('-form', '');
-  
-  // Add null check before accessing classList
-  const activeLink = document.querySelector(`.sidebar-menu a[data-page="${sidebarPageId}"]`);
-  if (activeLink) {
-    activeLink.classList.add('active');
-    console.log(`Set active link: ${sidebarPageId}`);
-  } else {
-    console.warn(`No sidebar link found for page: ${pageId} (looking for ${sidebarPageId})`);
-  }
-
-  currentPage = pageId; // Update current page global variable
-  console.log(`Successfully navigated to: ${pageId}`);
-
-  // Load data specific to the form - force reload from server
-  const formId = pageId.replace('-form', '').replace('PageContent', '');
-  if (formSheetMap[formId]) {
-    console.log(`Loading data for ${formId} after navigation`);
-    loadFormData(formId, true); // true = skip cache
-  }
-  
   // If navigating to personal details, load the current user's personal details
   if (pageId === 'personal-details-form') {
     console.log('Loading personal details for current user');
@@ -293,13 +255,33 @@ function navigateTo(pageId) {
     loadUsers();
   }
   
-  // Hide sidebar on mobile after navigation
-  if (window.innerWidth <= 768) {
-    const sidebar = document.getElementById('sidebar');
-    const mainContent = document.getElementById('mainContent');
-    if (sidebar) sidebar.classList.add('hidden');
-    if (mainContent) mainContent.classList.add('full-width');
+  // Update sidebar active link
+  const sidebarLinks = document.querySelectorAll('.sidebar-menu a');
+  sidebarLinks.forEach(link => link.classList.remove('active'));
+  
+  // Find and activate the corresponding sidebar link
+  const sidebarPageIdMap = {
+    'dashboardPageContent': 'dashboard',
+    'personal-details-form': 'personal-details',
+    'system-progressions-form': 'system-progressions',
+    'dreams-list-form': 'dreams-list',
+    'expenses-to-income-report-form': 'expenses-to-income-report',
+    'potential-business-partners-form': 'potential-business-partners',
+    'potential-field-trainings-form': 'potential-field-trainings',
+    'user-management-form': 'user-management'
+  };
+  
+  const sidebarPageId = sidebarPageIdMap[pageId];
+  if (sidebarPageId) {
+    const activeLink = document.querySelector(`.sidebar-menu a[data-page="${sidebarPageId}"]`);
+    if (activeLink) {
+      activeLink.classList.add('active');
+      console.log(`Set active sidebar link: ${sidebarPageId}`);
+    }
   }
+  
+  currentPage = pageId; // Update current page global variable
+  console.log(`Successfully navigated to: ${pageId}`);
 }
 
 // --- Form Data Handling ---
@@ -343,14 +325,14 @@ function saveProgressionsForm() {
   }
   
   // For checkboxes that aren't checked, they won't be in formData
-  // So we need to add them with a value of 'No'
+  // So we need to add them with a value of 'false'
   const checkboxes = form.querySelectorAll('input[type="checkbox"]');
   checkboxes.forEach(checkbox => {
     if (!formData.has(checkbox.name)) {
-      fields[checkbox.name] = 'No';
+      fields[checkbox.name] = false;
     } else {
-      // Ensure checked checkboxes have value 'Yes'
-      fields[checkbox.name] = 'Yes';
+      // Ensure checked checkboxes have value 'true'
+      fields[checkbox.name] = true;
     }
   });
   
@@ -546,11 +528,24 @@ function populateProgressionsForm(data) {
     const fieldName = checkbox.name;
     // Check if the data contains this field
     if (data[fieldName] !== undefined) {
-      // Set checkbox checked state based on value (Yes/No or true/false)
-      checkbox.checked = data[fieldName] === 'Yes' || data[fieldName] === true;
+      // Set checkbox checked state based on value (true/false, Yes/No, or 1/0)
+      const value = data[fieldName];
+      if (typeof value === 'boolean') {
+        checkbox.checked = value;
+      } else if (typeof value === 'string') {
+        checkbox.checked = value.toLowerCase() === 'true' || 
+                          value.toLowerCase() === 'yes' || 
+                          value === '1';
+      } else if (typeof value === 'number') {
+        checkbox.checked = value === 1;
+      } else {
+        checkbox.checked = false;
+      }
+      console.log(`Set checkbox ${fieldName} to ${checkbox.checked} based on value: ${value} (${typeof value})`);
     } else {
       // Default to unchecked if no data
       checkbox.checked = false;
+      console.log(`No data for checkbox ${fieldName}, setting to unchecked`);
     }
   });
   
@@ -560,6 +555,7 @@ function populateProgressionsForm(data) {
     const fieldName = input.name;
     if (data[fieldName] !== undefined) {
       input.value = data[fieldName];
+      console.log(`Set input ${fieldName} to ${input.value}`);
     }
   });
 }
@@ -757,64 +753,75 @@ function loadFormData(formId, skipCache = false) {
 
 // Improve form data handling to prevent data loss
 function populateForm(formId, data) {
-  console.log(`Populating ${formId} with data:`, data);
+  console.log(`Populating form ${formId} with data:`, data);
   const form = document.getElementById(formId);
   if (!form) {
     console.error(`Form with ID ${formId} not found`);
     return;
   }
 
-  // Populate all form fields
-  for (const key in data) {
-    const input = form.querySelector(`[name="${key}"]`);
-    if (input) {
-      if (input.type === 'date' && data[key]) {
-        // Format date string to YYYY-MM-DD for date input
+  // Set the record_id if it exists in the data
+  const recordIdInput = form.querySelector('input[name="record_id"]');
+  if (recordIdInput) {
+    if (data.record_id) {
+      recordIdInput.value = data.record_id;
+      console.log(`Set record_id to ${data.record_id}`);
+    } else if (currentAgent) {
+      // If no record_id in data, create one
+      const newRecordId = `${currentAgent.agentName}_${formId}`;
+      recordIdInput.value = newRecordId;
+      console.log(`Created new record_id: ${newRecordId}`);
+    }
+  }
+
+  // Loop through all form elements and set their values
+  const inputs = form.querySelectorAll('input, select, textarea');
+  inputs.forEach(input => {
+    // Skip the record_id field as we've already handled it
+    if (input.name === 'record_id') return;
+    
+    // Get the corresponding data field (convert to lowercase and replace spaces with underscores)
+    const fieldName = input.name.toLowerCase().replace(/ /g, '_');
+    const dataField = data[fieldName] || data[input.name];
+    
+    console.log(`Setting field ${input.name} (${fieldName}) to value:`, dataField);
+    
+    if (dataField !== undefined && dataField !== null) {
+      if (input.type === 'checkbox') {
+        // For checkboxes, set the checked property based on the value
+        input.checked = dataField === true || dataField === 'Yes' || dataField === 'yes' || dataField === 'true';
+      } else if (input.type === 'radio') {
+        // For radio buttons, check if the value matches
+        input.checked = input.value === dataField.toString();
+      } else if (input.type === 'date' && dataField) {
+        // For date inputs, ensure the value is in YYYY-MM-DD format
         try {
-          const date = new Date(data[key]);
+          const date = new Date(dataField);
           if (!isNaN(date.getTime())) {
-            input.value = date.toISOString().split('T')[0];
+            const formattedDate = date.toISOString().split('T')[0];
+            input.value = formattedDate;
+          } else {
+            input.value = dataField;
           }
         } catch (e) {
-          console.error(`Error formatting date for ${key}:`, e);
+          console.error(`Error formatting date for ${input.name}:`, e);
+          input.value = dataField;
         }
-      } else if (input.type === 'checkbox') {
-        // For checkboxes, check if the value is 'Yes'
-        input.checked = data[key] === 'Yes';
       } else {
-        // For all other input types
-        input.value = data[key] || '';
+        // For all other input types, just set the value
+        input.value = dataField;
+      }
+    } else {
+      // Clear the field if no data is available
+      if (input.type === 'checkbox' || input.type === 'radio') {
+        input.checked = false;
+      } else {
+        input.value = '';
       }
     }
-  }
+  });
   
-  // For personalForm, add special handling
-  if (formId === 'personalForm') {
-    // Make sure record_id is set
-    const recordIdInput = form.querySelector('input[name="record_id"]');
-    if (recordIdInput && !recordIdInput.value && currentAgent) {
-      recordIdInput.value = `${currentAgent.agentName}_personalForm`;
-    }
-    
-    // Add blur event listeners to each field
-    const inputs = form.querySelectorAll('input, select, textarea');
-    inputs.forEach(input => {
-      // Skip the record_id field
-      if (input.name === 'record_id') return;
-      
-      // Add blur event listener
-      input.addEventListener('blur', function() {
-        // Only save if auto-save is enabled and the field has a value
-        if (autoSaveEnabled && input.value.trim() !== '') {
-          console.log(`Field ${input.name} lost focus with value: ${input.value}`);
-          // Small delay to allow for focus to move to another field
-          setTimeout(() => {
-            saveFormData('personalForm');
-          }, 300);
-        }
-      });
-    });
-  }
+  console.log(`Form ${formId} populated successfully`);
 }
 
 function clearForm(formId) {
@@ -1173,6 +1180,8 @@ function loadPersonalDetails() {
   const callbackName = 'handleGetPersonalDetailsResponse_' + new Date().getTime();
   window[callbackName] = function(response) {
     console.log('Personal Details Response:', response);
+    console.log('Response type:', typeof response);
+    console.log('Response keys:', response ? Object.keys(response) : 'null');
     
     if (response && !response.error) {
       // Populate the form with the data
@@ -1195,6 +1204,9 @@ function loadPersonalDetails() {
         recordIdInput.value = `${currentAgent.agentName}_personalForm`;
       }
     }
+    
+    // Clean up the callback
+    delete window[callbackName];
   };
   
   const script = document.createElement('script');
@@ -1454,9 +1466,51 @@ function navigateTo(pageId) {
     setupProgressionsForm();
   }
   
+  // If navigating to personal details, load the current user's personal details
+  if (pageId === 'personal-details-form') {
+    console.log('Loading personal details for current user');
+    setTimeout(() => {
+      loadPersonalDetails(); // Load the current user's personal details
+    }, 100);
+    
+    // If user is admin, also load all personal details
+    if (currentAgent && currentAgent.role === 'admin') {
+      console.log('Admin navigated to personal details, loading all personal details');
+      setTimeout(() => {
+        loadAllPersonalDetails(); // Delay slightly to ensure page is ready
+      }, 200);
+    }
+  }
+  
+  // If navigating to user management and user is admin, load users list
+  if (pageId === 'user-management-form' && currentAgent && currentAgent.role === 'admin') {
+    loadUsers();
+  }
+  
   // Update sidebar active link
   const sidebarLinks = document.querySelectorAll('.sidebar-menu a');
   sidebarLinks.forEach(link => link.classList.remove('active'));
+  
+  // Find and activate the corresponding sidebar link
+  const sidebarPageIdMap = {
+    'dashboardPageContent': 'dashboard',
+    'personal-details-form': 'personal-details',
+    'system-progressions-form': 'system-progressions',
+    'dreams-list-form': 'dreams-list',
+    'expenses-to-income-report-form': 'expenses-to-income-report',
+    'potential-business-partners-form': 'potential-business-partners',
+    'potential-field-trainings-form': 'potential-field-trainings',
+    'user-management-form': 'user-management'
+  };
+  
+  const sidebarPageId = sidebarPageIdMap[pageId];
+  if (sidebarPageId) {
+    const activeLink = document.querySelector(`.sidebar-menu a[data-page="${sidebarPageId}"]`);
+    if (activeLink) {
+      activeLink.classList.add('active');
+      console.log(`Set active sidebar link: ${sidebarPageId}`);
+    }
+  }
   
   currentPage = pageId; // Update current page global variable
   console.log(`Successfully navigated to: ${pageId}`);

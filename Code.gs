@@ -235,6 +235,14 @@ function doPost(e) {
       } else {
         Logger.log('No agent or agentName found in fields');
       }
+      
+      // Convert boolean values to true/false strings for Google Sheets
+      for (const key in data.fields) {
+        if (typeof data.fields[key] === 'boolean') {
+          data.fields[key] = data.fields[key] ? true : false;
+          Logger.log(`Converted boolean field ${key} to ${data.fields[key]}`);
+        }
+      }
     }
 
     const rowData = headers.map(header => {
