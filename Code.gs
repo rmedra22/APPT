@@ -13,6 +13,7 @@ function checkOrCreateSheets() {
     const requiredSheets = {
       'Personal Details': ['record_id', 'agent', 'name', 'date', 'agent_id', 'state', 'npn', 'number', 'email', 'children', 'exam_date'],
       'System Progressions': ['record_id', 'agent', 'code_number', 'client', 'pass_license', 'business_partner_plan', 'licensed_appointed', 'field_trainings_10', 'associate_promotion', 'net_license', 'complete_laser_fund', 'cft_in_progress', 'certified_field_trainer', 'elite_trainer', 'marketing_director', 'watch_50000', 'ring_100000', 'executive_marketing_director'],
+      'Licensing Checklist': ['record_id', 'agent', 'pre_licensing_course', 'schedule_life_quiz', 'fingerprints', 'apply_to_state', 'submit_to_gfi', 'complete_ce_courses', 'errors_and_omissions', 'become_fully_appointed', 'setup_direct_deposit'],
       'Dreams List': ['record_id', 'agent', 'time_frame', 'dream', 'why'],
       'Expenses to Income Report': ['record_id', 'agent', 'item', 'amount', 'category', 'date', 'description'],
       'Potential Business Partners': ['record_id', 'agent', 'name', 'contact', 'email', 'status', 'notes'],

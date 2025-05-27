@@ -71,11 +71,12 @@ function toggleAutoSave() {
 }
 
 // !!! IMPORTANT: REPLACE 'YOUR_DEPLOYMENT_ID_HERE' with your actual Google Apps Script Web App Deployment ID
-const scriptId = 'AKfycbxsY5P4Qg54N_BoHzKRu0bEyFeBUkg06TRqaxIB45figk5BpbW4uX3Wu8RettDM6FMT6g'; // Replace with your actual script ID
+const scriptId = 'AKfycbwo5wcKKrs-TN2Ck8B0O6pEUMiW05pkUPkInoZfPRhm5ioTw84MJXLcF7YXZLY0YFyv0g'; // Replace with your actual script ID
 
 const formSheetMap = {
   'personalForm': 'Personal Details',
   'progressionsForm': 'System Progressions',
+  'licensingForm': 'Licensing Checklist',
   'dreamsForm': 'Dreams List',
   'expensesForm': 'Expenses to Income Report',
   'partnersForm': 'Potential Business Partners',
@@ -191,6 +192,7 @@ function navigateTo(pageId) {
   const pageIdMap = {
     'personal-details': 'personal-details-form',
     'system-progressions': 'system-progressions-form',
+    'licensing-checklist': 'licensing-checklist-form',
     'dreams-list': 'dreams-list-form',
     'expenses-to-income-report': 'expenses-to-income-report-form',
     'potential-business-partners': 'potential-business-partners-form',
@@ -234,6 +236,12 @@ function navigateTo(pageId) {
     setupProgressionsForm();
   }
   
+  // Load data for licensing checklist when navigating to it
+  if (pageId === 'licensing-checklist-form') {
+    console.log('Loading licensing checklist data for newly navigated page');
+    setupLicensingForm();
+  }
+  
   // If navigating to personal details, load the current user's personal details
   if (pageId === 'personal-details-form') {
     console.log('Loading personal details for current user');
@@ -264,6 +272,7 @@ function navigateTo(pageId) {
     'dashboardPageContent': 'dashboard',
     'personal-details-form': 'personal-details',
     'system-progressions-form': 'system-progressions',
+    'licensing-checklist-form': 'licensing-checklist',
     'dreams-list-form': 'dreams-list',
     'expenses-to-income-report-form': 'expenses-to-income-report',
     'potential-business-partners-form': 'potential-business-partners',
@@ -1404,6 +1413,258 @@ function setupProgressionsForm() {
   loadProgressionsData();
 }
 
+// Function to set up the licensing form
+function setupLicensingForm() {
+  const form = document.getElementById('licensingForm');
+  if (!form) {
+    console.error('Licensing form not found');
+    return;
+  }
+  
+  console.log('Setting up licensing form');
+  
+  // Add event listeners to checkboxes for auto-save
+  const checkboxes = form.querySelectorAll('input[type="checkbox"]');
+  checkboxes.forEach(checkbox => {
+    checkbox.addEventListener('change', function() {
+      console.log(`Checkbox ${this.name} changed to ${this.checked}`);
+      if (autoSaveEnabled) {
+        console.log('Auto-save is enabled, saving form...');
+        saveLicensingForm();
+      }
+    });
+  });
+  
+  // Add event listener to the save button
+  const saveButton = form.querySelector('button[type="submit"], button.save-button');
+  if (saveButton) {
+    saveButton.addEventListener('click', function(e) {
+      e.preventDefault();
+      console.log('Save button clicked');
+      saveLicensingForm();
+    });
+  }
+  
+  // Load initial data
+  loadLicensingData();
+}
+
+// Function to save licensing form
+function saveLicensingForm() {
+  const form = document.getElementById('licensingForm');
+  if (!form) {
+    console.error('Licensing form not found');
+    return;
+  }
+  
+  if (!currentAgent || !currentAgent.agentName) {
+    showToast('Login required to save data.', 'error');
+    return;
+  }
+  
+  const saveStatusElementId = 'licensingFormSaveStatus';
+  
+  // Show immediate feedback
+  showToast('Saving licensing checklist...', 'info');
+  updateSaveStatus('Saving...', saveStatusElementId);
+  
+  // Get all form data
+  const formData = new FormData(form);
+  const recordIdInput = form.querySelector('input[name="record_id"]');
+  let recordId = recordIdInput ? recordIdInput.value : '';
+  
+  // If no record_id, create one
+  if (!recordId) {
+    recordId = `${currentAgent.agentName}_licensingForm`;
+    if (recordIdInput) {
+      recordIdInput.value = recordId;
+    }
+  }
+  
+  // Convert FormData to a regular object
+  const fields = {};
+  for (let [key, value] of formData.entries()) {
+    fields[key] = value;
+  }
+  
+  // For checkboxes that aren't checked, they won't be in formData
+  // So we need to add them with a value of false
+  const checkboxes = form.querySelectorAll('input[type="checkbox"]');
+  checkboxes.forEach(checkbox => {
+    if (!formData.has(checkbox.name)) {
+      fields[checkbox.name] = false;
+    } else {
+      // Ensure checked checkboxes have value true
+      fields[checkbox.name] = true;
+    }
+  });
+  
+  // Add agent name to the data
+  fields['agentName'] = currentAgent.agentName;
+  fields['agent'] = currentAgent.agentName; // Also include 'agent' for compatibility
+  
+  console.log('Agent name being saved:', currentAgent.agentName);
+  console.log('Fields object:', fields);
+  
+  const payload = {
+    action: 'saveData',
+    sheetName: 'Licensing Checklist',
+    record_id: recordId,
+    fields: fields
+  };
+  
+  console.log('Saving licensing checklist with payload:', payload);
+  
+  // Create a unique callback name to avoid conflicts
+  const callbackName = 'handleSaveLicensingResponse_' + new Date().getTime();
+  window[callbackName] = function(response) {
+    console.log('Save licensing response:', response);
+    showToast('Licensing checklist saved successfully!', 'success');
+    updateSaveStatus('Saved!', saveStatusElementId);
+    
+    // Reload the data after a short delay to ensure it's updated
+    setTimeout(() => {
+      loadLicensingData();
+    }, 1000);
+  };
+  
+  // Use JSONP approach with script tag
+  const script = document.createElement('script');
+  script.src = `https://script.google.com/macros/s/${scriptId}/exec?callback=${callbackName}&action=saveData&sheetName=Licensing%20Checklist&record_id=${encodeURIComponent(recordId)}&agentName=${encodeURIComponent(currentAgent.agentName)}&agent=${encodeURIComponent(currentAgent.agentName)}&data=${encodeURIComponent(JSON.stringify(fields))}`;
+  
+  // Add error handling
+  script.onerror = function() {
+    console.error('Failed to save licensing checklist - script loading error');
+    showToast('Error saving licensing checklist. Please try again.', 'error');
+    updateSaveStatus('Error saving!', saveStatusElementId);
+  };
+  
+  document.head.appendChild(script);
+}
+
+// Function to load licensing data
+function loadLicensingData() {
+  if (!currentAgent || !currentAgent.agentName) {
+    console.error('No current agent found');
+    showToast('Please log in to view your licensing checklist', 'error');
+    return;
+  }
+  
+  console.log('Loading licensing checklist for', currentAgent.agentName);
+  
+  // Show loading status
+  const statusElement = document.getElementById('licensingFormSaveStatus');
+  if (statusElement) {
+    statusElement.textContent = 'Loading...';
+    statusElement.style.opacity = '1';
+  }
+  
+  // Create a unique callback name
+  const callbackName = 'handleGetLicensingResponse_' + new Date().getTime();
+  window[callbackName] = function(response) {
+    console.log('Licensing Checklist Response:', response);
+    
+    if (response && !response.error) {
+      // Populate the form with the data
+      populateLicensingForm(response);
+      if (statusElement) {
+        statusElement.textContent = 'Data loaded!';
+        setTimeout(() => {
+          statusElement.style.opacity = '0';
+        }, 3000);
+      }
+    } else {
+      console.error('Error loading licensing checklist:', response ? response.error : 'Unknown error');
+      if (statusElement) {
+        statusElement.textContent = 'Error loading data';
+      }
+      
+      // Make sure record_id is set even if no data was found
+      const recordIdInput = document.getElementById('licensingRecordId');
+      if (recordIdInput) {
+        recordIdInput.value = `${currentAgent.agentName}_licensingForm`;
+      }
+    }
+    
+    // Clean up the callback
+    delete window[callbackName];
+  };
+  
+  const script = document.createElement('script');
+  const timestamp = new Date().getTime(); // Add timestamp to prevent caching
+  const url = `https://script.google.com/macros/s/${scriptId}/exec?callback=${callbackName}&action=getFormData&sheetName=Licensing%20Checklist&sessionId=${encodeURIComponent(currentAgent.agentName)}&t=${timestamp}`;
+  console.log('Loading licensing checklist with URL:', url);
+  script.src = url;
+  
+  // Add error handling
+  script.onerror = function() {
+    console.error('Failed to load licensing checklist - script loading error');
+    if (statusElement) {
+      statusElement.textContent = 'Error loading data: Network error';
+    }
+  };
+  
+  document.head.appendChild(script);
+}
+
+// Function to populate licensing form with checkboxes
+function populateLicensingForm(data) {
+  console.log('Populating licensing form with data:', data);
+  const form = document.getElementById('licensingForm');
+  if (!form) {
+    console.error('Licensing form not found');
+    return;
+  }
+
+  // Set the record_id
+  const recordIdInput = form.querySelector('input[name="record_id"]');
+  if (recordIdInput) {
+    if (data.record_id) {
+      recordIdInput.value = data.record_id;
+    } else if (currentAgent) {
+      // If no record_id in data, create one
+      recordIdInput.value = `${currentAgent.agentName}_licensingForm`;
+    }
+  }
+  
+  // Loop through all checkboxes and set their state based on data
+  const checkboxes = form.querySelectorAll('input[type="checkbox"]');
+  checkboxes.forEach(checkbox => {
+    const fieldName = checkbox.name;
+    // Check if the data contains this field
+    if (data[fieldName] !== undefined) {
+      // Set checkbox checked state based on value (true/false, Yes/No, or 1/0)
+      const value = data[fieldName];
+      if (typeof value === 'boolean') {
+        checkbox.checked = value;
+      } else if (typeof value === 'string') {
+        checkbox.checked = value.toLowerCase() === 'true' || 
+                          value.toLowerCase() === 'yes' || 
+                          value === '1';
+      } else if (typeof value === 'number') {
+        checkbox.checked = value === 1;
+      } else {
+        checkbox.checked = false;
+      }
+      console.log(`Set checkbox ${fieldName} to ${checkbox.checked} based on value: ${value} (${typeof value})`);
+    } else {
+      // Default to unchecked if no data
+      checkbox.checked = false;
+      console.log(`No data for checkbox ${fieldName}, setting to unchecked`);
+    }
+  });
+  
+  // Also handle any text inputs or other field types
+  const textInputs = form.querySelectorAll('input[type="text"], textarea, select');
+  textInputs.forEach(input => {
+    const fieldName = input.name;
+    if (data[fieldName] !== undefined) {
+      input.value = data[fieldName];
+      console.log(`Set input ${fieldName} to ${input.value}`);
+    }
+  });
+}
+
 // Update navigateTo function to call setupProgressionsForm
 function navigateTo(pageId) {
   console.log(`Attempting to navigate to: ${pageId}`);
@@ -1423,6 +1684,7 @@ function navigateTo(pageId) {
   const pageIdMap = {
     'personal-details': 'personal-details-form',
     'system-progressions': 'system-progressions-form',
+    'licensing-checklist': 'licensing-checklist-form',
     'dreams-list': 'dreams-list-form',
     'expenses-to-income-report': 'expenses-to-income-report-form',
     'potential-business-partners': 'potential-business-partners-form',
@@ -1466,6 +1728,12 @@ function navigateTo(pageId) {
     setupProgressionsForm();
   }
   
+  // Load data for licensing checklist when navigating to it
+  if (pageId === 'licensing-checklist-form') {
+    console.log('Loading licensing checklist data for newly navigated page');
+    setupLicensingForm();
+  }
+  
   // If navigating to personal details, load the current user's personal details
   if (pageId === 'personal-details-form') {
     console.log('Loading personal details for current user');
@@ -1496,6 +1764,7 @@ function navigateTo(pageId) {
     'dashboardPageContent': 'dashboard',
     'personal-details-form': 'personal-details',
     'system-progressions-form': 'system-progressions',
+    'licensing-checklist-form': 'licensing-checklist',
     'dreams-list-form': 'dreams-list',
     'expenses-to-income-report-form': 'expenses-to-income-report',
     'potential-business-partners-form': 'potential-business-partners',
@@ -1538,4 +1807,119 @@ document.addEventListener('DOMContentLoaded', function() {
       saveProgressionsForm();
     }
   });
+});
+
+// Document ready function
+document.addEventListener('DOMContentLoaded', function() {
+  console.log('Document ready, initializing app...');
+  
+  // Set up event listeners for sidebar navigation
+  document.querySelectorAll('.sidebar-menu a').forEach(link => {
+    link.addEventListener('click', function(e) {
+      e.preventDefault();
+      const pageId = this.getAttribute('data-page');
+      navigateTo(pageId);
+    });
+  });
+  
+  // Set up event listeners for form submissions
+  document.querySelectorAll('form').forEach(form => {
+    form.addEventListener('submit', function(e) {
+      e.preventDefault(); // Prevent default form submission
+      const formId = this.id;
+      console.log(`Form ${formId} submitted`);
+      
+      // Call the appropriate save function based on form ID
+      if (formId === 'personalForm') {
+        savePersonalForm();
+      } else if (formId === 'progressionsForm') {
+        saveProgressionsForm();
+      } else if (formId === 'licensingForm') {
+        saveLicensingForm();
+      } else if (formId === 'dreamsForm') {
+        saveDreamsForm();
+      } else if (formId === 'expensesForm') {
+        saveExpensesForm();
+      } else if (formId === 'partnersForm') {
+        savePartnersForm();
+      } else if (formId === 'clientsForm') {
+        saveClientsForm();
+      } else if (formId === 'loginForm') {
+        handleLogin();
+      } else if (formId === 'userForm') {
+        saveUser();
+      }
+    });
+  });
+  
+  // Set up auto-save toggle buttons
+  document.querySelectorAll('.auto-save-toggle').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      toggleAutoSave();
+    });
+  });
+  
+  // Add logout functionality
+  const logoutButton = document.getElementById('logoutButton');
+  if (logoutButton) {
+    logoutButton.addEventListener('click', function(e) {
+      e.preventDefault();
+      // Clear session
+      sessionStorage.removeItem('currentAgent');
+      currentAgent = null;
+      
+      // Show login page, hide app
+      const loginPage = document.getElementById('loginPage');
+      const dashboardPage = document.getElementById('dashboardPage');
+      
+      if (loginPage) loginPage.style.display = 'flex';
+      if (dashboardPage) dashboardPage.style.display = 'none';
+      
+      showToast('You have been logged out.', 'info');
+    });
+  }
+  
+  // Check for existing session
+  console.log('Checking for existing session...');
+  const savedAgent = sessionStorage.getItem('currentAgent');
+  
+  if (savedAgent) {
+    try {
+      currentAgent = JSON.parse(savedAgent);
+      console.log('Found saved session for:', currentAgent.agentName, 'with role:', currentAgent.role);
+      
+      // Hide login page, show app
+      const loginPage = document.getElementById('loginPage');
+      const dashboardPage = document.getElementById('dashboardPage');
+      
+      if (loginPage) loginPage.style.display = 'none';
+      if (dashboardPage) dashboardPage.style.display = 'flex';
+      
+      // Set up role-based access
+      setupRoleBasedAccess();
+      
+      // Update UI with agent info
+      const headerAgentName = document.getElementById('headerAgentName');
+      if (headerAgentName) headerAgentName.textContent = currentAgent.agentName;
+      
+      const agentNameDisplay = document.getElementById('agentNameDisplay');
+      const agentRoleDisplay = document.getElementById('agentRoleDisplay');
+      const agentAvatar = document.getElementById('agentAvatar');
+      
+      if (agentNameDisplay) agentNameDisplay.textContent = currentAgent.agentName;
+      if (agentRoleDisplay) agentRoleDisplay.textContent = currentAgent.role;
+      if (agentAvatar && currentAgent.avatarUrl) {
+        agentAvatar.src = currentAgent.avatarUrl;
+      } else if (agentAvatar) {
+        agentAvatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentAgent.agentName)}&background=random`;
+      }
+      
+      // Navigate to dashboard
+      navigateTo('dashboardPageContent');
+    } catch (e) {
+      console.error('Error restoring session:', e);
+      sessionStorage.removeItem('currentAgent');
+    }
+  }
 });

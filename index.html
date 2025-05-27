@@ -559,6 +559,7 @@
         <a href="#" data-page="dashboard" class="active"><i class="fas fa-home"></i> Dashboard</a>
         <a href="#" data-page="personal-details" class=""><i class="fas fa-user-circle"></i> Personal Details</a>
         <a href="#" data-page="system-progressions" class=""><i class="fas fa-chart-line"></i> System Progressions</a>
+        <a href="#" data-page="licensing-checklist" class=""><i class="fas fa-clipboard-check"></i> Licensing Checklist</a>
         <a href="#" data-page="dreams-list" class=""><i class="fas fa-lightbulb"></i> Dreams List</a>
         <a href="#" data-page="expenses-to-income-report" class=""><i class="fas fa-money-bill-wave"></i> Expenses Report</a>
         <a href="#" data-page="potential-business-partners" class=""><i class="fas fa-handshake"></i> Business Partners</a>
@@ -802,6 +803,84 @@
                   <p id="progressionsFormSaveStatus" class="text-sm text-gray-500 mr-auto flex items-center"></p>
                   <button type="submit" class="btn btn-primary">Save Progressions</button>
                 </div>
+            </form>
+          </div>
+        </div>
+
+        <div id="licensing-checklist-form" class="page-content hidden">
+          <div class="form-container">
+            <h2 class="page-title">Licensing Checklist</h2>
+            <p class="page-description">Track your licensing requirements and progress.</p>
+            <form id="licensingForm" class="form-grid">
+              <div class="form-group">
+                <label for="preLicensingCourse">Pre Licensing Course:</label>
+                <div class="checkbox-wrapper">
+                  <input type="checkbox" id="preLicensingCourse" name="pre_licensing_course" value="true">
+                  <span class="checkbox-label">Completed</span>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="scheduleLifeQuiz">Schedule Life Quiz:</label>
+                <div class="checkbox-wrapper">
+                  <input type="checkbox" id="scheduleLifeQuiz" name="schedule_life_quiz" value="true">
+                  <span class="checkbox-label">Completed</span>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="fingerprints">Fingerprints (If Applicable):</label>
+                <div class="checkbox-wrapper">
+                  <input type="checkbox" id="fingerprints" name="fingerprints" value="true">
+                  <span class="checkbox-label">Completed</span>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="applyToState">Apply to State (NIPR):</label>
+                <div class="checkbox-wrapper">
+                  <input type="checkbox" id="applyToState" name="apply_to_state" value="true">
+                  <span class="checkbox-label">Completed</span>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="submitToGFI">Submit to GFI:</label>
+                <div class="checkbox-wrapper">
+                  <input type="checkbox" id="submitToGFI" name="submit_to_gfi" value="true">
+                  <span class="checkbox-label">Completed</span>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="completeCECourses">Complete CE Courses:</label>
+                <div class="checkbox-wrapper">
+                  <input type="checkbox" id="completeCECourses" name="complete_ce_courses" value="true">
+                  <span class="checkbox-label">Completed</span>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="errorsAndOmissions">Errors & Omissions:</label>
+                <div class="checkbox-wrapper">
+                  <input type="checkbox" id="errorsAndOmissions" name="errors_and_omissions" value="true">
+                  <span class="checkbox-label">Completed</span>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="becomeFullyAppointed">Become fully appointed with all companies:</label>
+                <div class="checkbox-wrapper">
+                  <input type="checkbox" id="becomeFullyAppointed" name="become_fully_appointed" value="true">
+                  <span class="checkbox-label">Completed</span>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="setupDirectDeposit">Set up Direct Deposit:</label>
+                <div class="checkbox-wrapper">
+                  <input type="checkbox" id="setupDirectDeposit" name="setup_direct_deposit" value="true">
+                  <span class="checkbox-label">Completed</span>
+                </div>
+              </div>
+              <input type="hidden" id="licensingRecordId" name="record_id">
+              <input type="hidden" id="licensingAgentName" name="agentName">
+              <div class="form-actions col-span-full">
+                <p id="licensingFormSaveStatus" class="text-sm text-gray-500 mr-auto flex items-center"></p>
+                <button type="submit" class="btn btn-primary">Save Licensing Checklist</button>
+              </div>
             </form>
           </div>
         </div>
