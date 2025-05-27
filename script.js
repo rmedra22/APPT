@@ -7,24 +7,55 @@ let autoSaveEnabled = true; // New variable to control auto-save feature
 
 // Add role-based access control
 function setupRoleBasedAccess() {
-  const isAdmin = currentAgent && currentAgent.role === 'admin';
+  if (!currentAgent || !currentAgent.role) {
+    console.error('Cannot setup role-based access: No current agent or role information');
+    return;
+  }
   
-  // Hide admin-only elements for regular users
+  console.log('Setting up role-based access for role:', currentAgent.role);
+  // Force lowercase comparison for consistency
+  const isAdmin = currentAgent.role.toLowerCase() === 'admin';
+  
+  // Debug: Log current agent info
+  console.log('Current agent:', JSON.stringify(currentAgent));
+  console.log('Is admin?', isAdmin);
+  
+  // Show/hide admin-only elements
   document.querySelectorAll('.admin-only').forEach(element => {
-    element.style.display = isAdmin ? '' : 'none';
+    if (isAdmin) {
+      element.style.display = 'block';
+      console.log('Showing admin-only element:', element);
+    } else {
+      element.style.display = 'none';
+      console.log('Hiding admin-only element:', element);
+    }
   });
   
-  // For regular users, only show Field Trainings in the sidebar
-  if (!isAdmin) {
-    document.querySelectorAll('.sidebar-menu a').forEach(link => {
-      const page = link.getAttribute('data-page');
+  // Show/hide sidebar menu items based on role
+  document.querySelectorAll('.sidebar-menu a').forEach(link => {
+    const page = link.getAttribute('data-page');
+    console.log('Checking sidebar link:', page, 'for role:', currentAgent.role);
+    
+    // Make all links visible first
+    link.style.display = '';
+    
+    // For regular users, hide specific links
+    if (!isAdmin) {
       if (page !== 'dashboard' && 
           page !== 'personal-details-form' && 
           page !== 'potential-field-trainings-form') {
         link.style.display = 'none';
+        console.log('Hiding sidebar link:', page);
       }
-    });
-  }
+    } else {
+      console.log('Showing sidebar link for admin:', page);
+    }
+  });
+  
+  // Debug: Log all sidebar links and their visibility
+  document.querySelectorAll('.sidebar-menu a').forEach(link => {
+    console.log('Sidebar link:', link.getAttribute('data-page'), 'Display:', link.style.display);
+  });
 }
 
 // Function to toggle auto-save
@@ -40,7 +71,7 @@ function toggleAutoSave() {
 }
 
 // !!! IMPORTANT: REPLACE 'YOUR_DEPLOYMENT_ID_HERE' with your actual Google Apps Script Web App Deployment ID
-const scriptId = 'AKfycbxHbir835yqe4zbSAG0pQtIX_TAQTZJJX6rALp68oCeDwfGGDgNFvUAxLwrhum2nbm_xA'; // Replace with your actual script ID
+const scriptId = 'AKfycbz5HbV--Cs4W3PXQGU_BqVU_WAK01Ze_bZarugfEJZYPwSrLRuk6ybKmyutmj9Pamwtyw'; // Replace with your actual script ID
 
 const formSheetMap = {
   'personalForm': 'Personal Details',
@@ -143,39 +174,99 @@ function initSheets() {
 
 // Handle Page Navigation
 function navigateTo(pageId) {
+  console.log(`Attempting to navigate to: ${pageId}`);
+  
+  // Handle special case for dashboard
+  if (pageId === 'dashboard') {
+    pageId = 'dashboardPageContent';
+  }
+  
+  // Fix double -form suffix issue
+  if (pageId.endsWith('-form-form')) {
+    pageId = pageId.replace('-form-form', '-form');
+    console.log(`Fixed double form suffix, now navigating to: ${pageId}`);
+  }
+  
+  // Map sidebar data-page values to actual page IDs
+  const pageIdMap = {
+    'personal-details': 'personal-details-form',
+    'system-progressions': 'system-progressions-form',
+    'dreams-list': 'dreams-list-form',
+    'expenses-to-income-report': 'expenses-to-income-report-form',
+    'potential-business-partners': 'potential-business-partners-form',
+    'potential-field-trainings': 'potential-field-trainings-form',
+    'user-management': 'user-management-form'
+  };
+  
+  // Check if we need to map the pageId
+  if (pageIdMap[pageId]) {
+    console.log(`Mapping page ID from ${pageId} to ${pageIdMap[pageId]}`);
+    pageId = pageIdMap[pageId];
+  }
+  
   // First, check if the page exists
   const targetPage = document.getElementById(pageId);
   if (!targetPage) {
     console.error(`Error: Page with ID "${pageId}" not found`);
-    showToast(`Error: Page not found`, 'error');
+    console.log('Available page IDs:');
+    document.querySelectorAll('.page-content').forEach(page => {
+      console.log(`- ${page.id}`);
+    });
+    showToast(`Error: Page not found (${pageId})`, 'error');
     return; // Exit the function if the page doesn't exist
   }
 
+  console.log(`Found target page: ${pageId}`);
+
   // Hide all pages and show the target page
   const pages = document.querySelectorAll('.page-content');
-  pages.forEach(page => page.classList.add('hidden'));
+  pages.forEach(page => {
+    page.classList.add('hidden');
+    console.log(`Hidden page: ${page.id}`);
+  });
+  
   targetPage.classList.remove('hidden');
+  console.log(`Showing page: ${pageId}`);
 
+  // Load data for specific forms when navigating to them
+  if (pageId === 'system-progressions-form') {
+    console.log('Loading progressions data for newly navigated page');
+    setupProgressionsForm();
+  }
+  
   // Update sidebar active link
   const sidebarLinks = document.querySelectorAll('.sidebar-menu a');
   sidebarLinks.forEach(link => link.classList.remove('active'));
   
-  // Map dashboardPageContent to dashboard for sidebar link selection
-  const sidebarPageId = pageId === 'dashboardPageContent' ? 'dashboard' : pageId;
+  // Map page IDs back to sidebar data-page values
+  const sidebarPageIdMap = {
+    'dashboardPageContent': 'dashboard',
+    'personal-details-form': 'personal-details',
+    'system-progressions-form': 'system-progressions',
+    'dreams-list-form': 'dreams-list',
+    'expenses-to-income-report-form': 'expenses-to-income-report',
+    'potential-business-partners-form': 'potential-business-partners',
+    'potential-field-trainings-form': 'potential-field-trainings',
+    'user-management-form': 'user-management'
+  };
+  
+  // Get the sidebar page ID
+  const sidebarPageId = sidebarPageIdMap[pageId] || pageId.replace('-form', '');
   
   // Add null check before accessing classList
   const activeLink = document.querySelector(`.sidebar-menu a[data-page="${sidebarPageId}"]`);
   if (activeLink) {
     activeLink.classList.add('active');
+    console.log(`Set active link: ${sidebarPageId}`);
   } else {
     console.warn(`No sidebar link found for page: ${pageId} (looking for ${sidebarPageId})`);
   }
 
   currentPage = pageId; // Update current page global variable
-  console.log(`Navigated to: ${pageId}`);
+  console.log(`Successfully navigated to: ${pageId}`);
 
   // Load data specific to the form - force reload from server
-  const formId = pageId.replace('-form', '');
+  const formId = pageId.replace('-form', '').replace('PageContent', '');
   if (formSheetMap[formId]) {
     console.log(`Loading data for ${formId} after navigation`);
     loadFormData(formId, true); // true = skip cache
@@ -204,17 +295,285 @@ function navigateTo(pageId) {
   
   // Hide sidebar on mobile after navigation
   if (window.innerWidth <= 768) {
-    document.getElementById('sidebar').classList.add('hidden');
-    document.getElementById('mainContent').classList.add('full-width');
+    const sidebar = document.getElementById('sidebar');
+    const mainContent = document.getElementById('mainContent');
+    if (sidebar) sidebar.classList.add('hidden');
+    if (mainContent) mainContent.classList.add('full-width');
   }
 }
 
 // --- Form Data Handling ---
 
-// Save form data to Google Sheet
+// Function to save progressions form
+function saveProgressionsForm() {
+  const form = document.getElementById('progressionsForm');
+  if (!form) {
+    console.error('Progressions form not found');
+    return;
+  }
+  
+  if (!currentAgent || !currentAgent.agentName) {
+    showToast('Login required to save data.', 'error');
+    return;
+  }
+  
+  const saveStatusElementId = 'progressionsFormSaveStatus';
+  
+  // Show immediate feedback
+  showToast('Saving progressions...', 'info');
+  updateSaveStatus('Saving...', saveStatusElementId);
+  
+  // Get all form data
+  const formData = new FormData(form);
+  const recordIdInput = form.querySelector('input[name="record_id"]');
+  let recordId = recordIdInput ? recordIdInput.value : '';
+  
+  // If no record_id, create one
+  if (!recordId) {
+    recordId = `${currentAgent.agentName}_progressionsForm`;
+    if (recordIdInput) {
+      recordIdInput.value = recordId;
+    }
+  }
+  
+  // Convert FormData to a regular object
+  const fields = {};
+  for (let [key, value] of formData.entries()) {
+    fields[key] = value;
+  }
+  
+  // For checkboxes that aren't checked, they won't be in formData
+  // So we need to add them with a value of 'No'
+  const checkboxes = form.querySelectorAll('input[type="checkbox"]');
+  checkboxes.forEach(checkbox => {
+    if (!formData.has(checkbox.name)) {
+      fields[checkbox.name] = 'No';
+    } else {
+      // Ensure checked checkboxes have value 'Yes'
+      fields[checkbox.name] = 'Yes';
+    }
+  });
+  
+  // CRITICAL: Add agent name to the data - IMPORTANT: Use 'agentName' to match the column name in the sheet
+  fields['agentName'] = currentAgent.agentName;
+  fields['agent'] = currentAgent.agentName; // Also include 'agent' for compatibility
+  
+  console.log('Agent name being saved:', currentAgent.agentName);
+  console.log('Fields object:', fields);
+  
+  const payload = {
+    action: 'saveData',
+    sheetName: 'System Progressions',
+    record_id: recordId,
+    fields: fields
+  };
+  
+  console.log('Saving progressions with payload:', payload);
+  
+  // Create a unique callback name to avoid conflicts
+  const callbackName = 'handleSaveProgressionsResponse_' + new Date().getTime();
+  window[callbackName] = function(response) {
+    console.log('Save progressions response:', response);
+    showToast('Progressions saved successfully!', 'success');
+    updateSaveStatus('Saved!', saveStatusElementId);
+    
+    // Reload the data after a short delay to ensure it's updated
+    setTimeout(() => {
+      loadProgressionsData();
+    }, 1000);
+  };
+  
+  // Use JSONP approach with script tag
+  const script = document.createElement('script');
+  script.src = `https://script.google.com/macros/s/${scriptId}/exec?callback=${callbackName}&action=saveData&sheetName=System%20Progressions&record_id=${encodeURIComponent(recordId)}&agentName=${encodeURIComponent(currentAgent.agentName)}&agent=${encodeURIComponent(currentAgent.agentName)}&data=${encodeURIComponent(JSON.stringify(fields))}`;
+  
+  // Add error handling
+  script.onerror = function() {
+    console.error('Failed to save progressions - script loading error');
+    showToast('Error saving progressions. Please try again.', 'error');
+    updateSaveStatus('Error saving!', saveStatusElementId);
+  };
+  
+  document.head.appendChild(script);
+}
+
+// Add a hidden input field for agentName to the progressions form
+document.addEventListener('DOMContentLoaded', function() {
+  // Add event listener for progressions form
+  const progressionsForm = document.getElementById('progressionsForm');
+  if (progressionsForm) {
+    // Add a hidden input for agentName if it doesn't exist
+    if (!progressionsForm.querySelector('input[name="agentName"]')) {
+      const agentNameInput = document.createElement('input');
+      agentNameInput.type = 'hidden';
+      agentNameInput.name = 'agentName';
+      agentNameInput.id = 'progressionsAgentName';
+      progressionsForm.appendChild(agentNameInput);
+    }
+    
+    // Add a hidden input for record_id if it doesn't exist
+    if (!progressionsForm.querySelector('input[name="record_id"]')) {
+      const recordIdInput = document.createElement('input');
+      recordIdInput.type = 'hidden';
+      recordIdInput.name = 'record_id';
+      recordIdInput.id = 'progressionsRecordId';
+      progressionsForm.appendChild(recordIdInput);
+    }
+    
+    progressionsForm.addEventListener('submit', function(event) {
+      event.preventDefault();
+      
+      // Update the hidden agentName field before saving
+      const agentNameInput = progressionsForm.querySelector('input[name="agentName"]');
+      if (agentNameInput && currentAgent && currentAgent.agentName) {
+        agentNameInput.value = currentAgent.agentName;
+        console.log('Set agentName input value to:', agentNameInput.value);
+      }
+      
+      saveProgressionsForm();
+    });
+  }
+  
+  // Add refresh button for progressions form
+  const progressionsPage = document.getElementById('system-progressions-form');
+  if (progressionsPage) {
+    const refreshButton = document.createElement('button');
+    refreshButton.type = 'button';
+    refreshButton.className = 'btn btn-secondary mb-4';
+    refreshButton.textContent = 'Refresh Data';
+    refreshButton.onclick = function() {
+      loadProgressionsData();
+    };
+    
+    // Insert after the page description
+    const pageDescription = progressionsPage.querySelector('.page-description');
+    if (pageDescription && pageDescription.parentNode) {
+      pageDescription.parentNode.insertBefore(refreshButton, pageDescription.nextSibling);
+    }
+  }
+});
+
+// Improve System Progressions form handling
+function loadProgressionsData() {
+  if (!currentAgent || !currentAgent.agentName) {
+    console.error('No current agent found');
+    showToast('Please log in to view your system progressions', 'error');
+    return;
+  }
+  
+  console.log('Loading system progressions for', currentAgent.agentName);
+  
+  // Show loading status
+  const statusElement = document.getElementById('progressionsFormSaveStatus');
+  if (statusElement) {
+    statusElement.textContent = 'Loading...';
+    statusElement.style.opacity = '1';
+  }
+  
+  // Create a unique callback name to avoid conflicts
+  const callbackName = 'handleGetProgressionsResponse_' + new Date().getTime();
+  window[callbackName] = function(response) {
+    console.log('System Progressions Response:', response);
+    console.log('Response type:', typeof response);
+    console.log('Response keys:', response ? Object.keys(response) : 'null');
+    
+    if (response && !response.error) {
+      // Populate the form with the data
+      populateProgressionsForm(response);
+      if (statusElement) {
+        statusElement.textContent = 'Data loaded!';
+        setTimeout(() => {
+          statusElement.style.opacity = '0';
+        }, 3000);
+      }
+    } else {
+      console.error('Error loading system progressions:', response ? response.error : 'Unknown error');
+      if (statusElement) {
+        statusElement.textContent = 'Error loading data';
+      }
+      
+      // Make sure record_id is set even if no data was found
+      const recordIdInput = document.getElementById('progressionsRecordId');
+      if (recordIdInput) {
+        recordIdInput.value = `${currentAgent.agentName}_progressionsForm`;
+      }
+    }
+    
+    // Clean up the callback
+    delete window[callbackName];
+  };
+  
+  const script = document.createElement('script');
+  const timestamp = new Date().getTime(); // Add timestamp to prevent caching
+  const url = `https://script.google.com/macros/s/${scriptId}/exec?callback=${callbackName}&action=getFormData&sheetName=System%20Progressions&sessionId=${encodeURIComponent(currentAgent.agentName)}&t=${timestamp}`;
+  console.log('Loading system progressions with URL:', url);
+  script.src = url;
+  
+  // Add error handling
+  script.onerror = function() {
+    console.error('Failed to load system progressions - script loading error');
+    if (statusElement) {
+      statusElement.textContent = 'Error loading data: Network error';
+    }
+  };
+  
+  document.head.appendChild(script);
+}
+
+// Special function to populate progressions form with checkboxes
+function populateProgressionsForm(data) {
+  console.log('Populating progressions form with data:', data);
+  const form = document.getElementById('progressionsForm');
+  if (!form) {
+    console.error('Progressions form not found');
+    return;
+  }
+
+  // Set the record_id
+  const recordIdInput = form.querySelector('input[name="record_id"]');
+  if (recordIdInput) {
+    if (data.record_id) {
+      recordIdInput.value = data.record_id;
+    } else if (currentAgent) {
+      // If no record_id in data, create one
+      recordIdInput.value = `${currentAgent.agentName}_progressionsForm`;
+    }
+  }
+  
+  // Loop through all checkboxes and set their state based on data
+  const checkboxes = form.querySelectorAll('input[type="checkbox"]');
+  checkboxes.forEach(checkbox => {
+    const fieldName = checkbox.name;
+    // Check if the data contains this field
+    if (data[fieldName] !== undefined) {
+      // Set checkbox checked state based on value (Yes/No or true/false)
+      checkbox.checked = data[fieldName] === 'Yes' || data[fieldName] === true;
+    } else {
+      // Default to unchecked if no data
+      checkbox.checked = false;
+    }
+  });
+  
+  // Also handle any text inputs or other field types
+  const textInputs = form.querySelectorAll('input[type="text"], textarea, select');
+  textInputs.forEach(input => {
+    const fieldName = input.name;
+    if (data[fieldName] !== undefined) {
+      input.value = data[fieldName];
+    }
+  });
+}
+
+// Update the saveFormData function to use JSONP instead of fetch
 function saveFormData(formId) {
   if (!currentAgent || !currentAgent.agentName) {
     showToast('Login required to save data.', 'error');
+    return;
+  }
+
+  // For System Progressions, use the dedicated function
+  if (formId === 'progressionsForm') {
+    saveProgressionsForm();
     return;
   }
 
@@ -245,16 +604,20 @@ function saveFormData(formId) {
     }
   }
 
+  // If still no record_id, generate one
+  if (!recordId) {
+    recordId = generateRecordId(currentAgent.agentName, formId);
+    if (recordIdInput) {
+      recordIdInput.value = recordId;
+    }
+  }
+
   // Convert FormData to a regular object
   const fields = {};
   for (let [key, value] of formData.entries()) {
-    if (key === 'amount' && formId === 'expensesForm') {
-      fields[key] = parseCurrency(value); // Parse currency for expenses
-    } else {
-      fields[key] = value;
-    }
+    fields[key] = value;
   }
-  
+
   // For checkboxes that aren't checked, they won't be in formData
   // So we need to add them with a value of 'No'
   const checkboxes = form.querySelectorAll('input[type="checkbox"]');
@@ -266,6 +629,11 @@ function saveFormData(formId) {
 
   // Add agent name to the data
   fields['agent'] = currentAgent.agentName; // Ensure agent name is always saved
+  
+  // For System Progressions, also add agentName field to match the column name in the sheet
+  if (sheetName === 'System Progressions') {
+    fields['agentName'] = currentAgent.agentName;
+  }
 
   const payload = {
     action: 'saveData', // This action is handled by doPost in Code.gs
@@ -276,28 +644,50 @@ function saveFormData(formId) {
 
   console.log('Saving data with payload:', payload);
 
-  fetch(`https://script.google.com/macros/s/${scriptId}/exec`, {
-    method: 'POST',
-    mode: 'no-cors',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: JSON.stringify(payload)
-  })
-  .then(response => {
-    console.log('Form data sent (no-cors response):', response);
+  // Use JSONP approach with a form submission
+  const jsonpCallback = 'handleSaveFormResponse_' + new Date().getTime();
+  window[jsonpCallback] = function(response) {
+    console.log('Save form response:', response);
     showToast('Data saved successfully!', 'success');
     updateSaveStatus('Saved!', saveStatusElementId);
+    
     // For single-entry forms, reload the data to ensure UI is updated
     if (!['dreamsForm', 'expensesForm', 'partnersForm', 'clientsForm'].includes(formId)) {
-        loadFormData(formId);
+      loadFormData(formId);
     }
-  })
-  .catch(error => {
-    console.error('Error saving form data:', error);
-    showToast('Error saving data. Please try again.', 'error');
-    updateSaveStatus('Error saving!', saveStatusElementId);
-  });
+  };
+  
+  // Create a hidden form and submit it
+  const hiddenForm = document.createElement('form');
+  hiddenForm.method = 'POST';
+  hiddenForm.action = `https://script.google.com/macros/s/${scriptId}/exec?callback=${jsonpCallback}`;
+  hiddenForm.target = 'hidden_iframe';
+  
+  // Add the data as a hidden input
+  const dataInput = document.createElement('input');
+  dataInput.type = 'hidden';
+  dataInput.name = 'data';
+  dataInput.value = JSON.stringify(payload);
+  hiddenForm.appendChild(dataInput);
+  
+  // Create a hidden iframe to receive the response
+  let iframe = document.getElementById('hidden_iframe');
+  if (!iframe) {
+    iframe = document.createElement('iframe');
+    iframe.id = 'hidden_iframe';
+    iframe.name = 'hidden_iframe';
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
+  }
+  
+  // Add the form to the document and submit it
+  document.body.appendChild(hiddenForm);
+  hiddenForm.submit();
+  
+  // Clean up
+  setTimeout(() => {
+    document.body.removeChild(hiddenForm);
+  }, 1000);
 }
 
 // Load form data from Google Sheet with improved debugging
@@ -346,12 +736,6 @@ function loadFormData(formId, skipCache = false) {
       console.log(`Received data for ${formId}:`, response);
       populateForm(formId, response);
       updateSaveStatus('Data loaded!', `${formId}SaveStatus`);
-      
-      // If the form doesn't have a record_id yet, set it to the consistent format
-      const recordIdInput = document.querySelector(`#${formId} input[name="record_id"]`);
-      if (recordIdInput && !recordIdInput.value) {
-        recordIdInput.value = `${currentAgent.agentName}_${formId}`;
-      }
     }
   };
   
@@ -524,1421 +908,254 @@ function renderMultiEntryTable(formId, entries) {
       
       actionsCell.appendChild(editBtn);
       actionsCell.appendChild(deleteBtn);
-    } else if (formId === 'partnersForm') {
-      row.insertCell().textContent = entry.name || '';
-      row.insertCell().textContent = entry.contact || '';
-      row.insertCell().textContent = entry.email || '';
-      row.insertCell().textContent = entry.status || '';
-      row.insertCell().textContent = entry.notes || '';
-      
-      // Add actions cell
-      const actionsCell = row.insertCell();
-      const editBtn = document.createElement('button');
-      editBtn.className = 'btn-edit';
-      editBtn.innerHTML = '<i class="fas fa-edit"></i>';
-      editBtn.onclick = function() { editMultiEntry(formId, index); };
-      
-      const deleteBtn = document.createElement('button');
-      deleteBtn.className = 'btn-delete ml-2';
-      deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
-      deleteBtn.onclick = function() { deleteMultiEntry(formId, index); };
-      
-      actionsCell.appendChild(editBtn);
-      actionsCell.appendChild(deleteBtn);
-    } else if (formId === 'clientsForm') { // Field Trainings
-      row.insertCell().textContent = entry.client_name || '';
-      row.insertCell().textContent = entry.date ? new Date(entry.date).toLocaleDateString() : '';
-      row.insertCell().textContent = entry.type_of_training || '';
-      row.insertCell().textContent = entry.outcome || '';
-      row.insertCell().textContent = entry.notes || '';
-      
-      // Add actions cell
-      const actionsCell = row.insertCell();
-      const editBtn = document.createElement('button');
-      editBtn.className = 'btn-edit';
-      editBtn.innerHTML = '<i class="fas fa-edit"></i>';
-      editBtn.onclick = function() { editMultiEntry(formId, index); };
-      
-      const deleteBtn = document.createElement('button');
-      deleteBtn.className = 'btn-delete ml-2';
-      deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
-      deleteBtn.onclick = function() { deleteMultiEntry(formId, index); };
-      
-      actionsCell.appendChild(editBtn);
-      actionsCell.appendChild(deleteBtn);
     }
   });
+}
+
+// Debug function to check all page elements
+function debugPageElements() {
+  console.log('--- DEBUG: Page Elements ---');
   
-  console.log(`Table for ${formId} rendered with ${entries.length} rows`);
-}
-
-function attachMultiEntryTableListeners(formId) {
-  const tableBody = document.querySelector(`#${formId} .data-table tbody`);
-  if (!tableBody) return;
-
-  // Clear previous listeners to prevent duplicates
-  tableBody.removeEventListener('click', handleTableButtonClick);
-  tableBody.addEventListener('click', handleTableButtonClick);
-}
-
-function handleTableButtonClick(event) {
-  const target = event.target.closest('button');
-  if (!target) return;
-
-  const formId = target.dataset.formId;
-  const index = parseInt(target.dataset.index);
-
-  if (target.classList.contains('edit-btn')) {
-    editMultiEntry(formId, index);
-  } else if (target.classList.contains('delete-btn')) {
-    deleteMultiEntry(formId, index);
-  }
-}
-
-function openModal(modalId) {
-  const modal = document.getElementById(modalId);
-  if (modal) {
-    modal.classList.add('show');
-  }
-}
-
-function closeModal(modalId) {
-  const modal = document.getElementById(modalId);
-  if (modal) {
-    modal.classList.remove('show');
-    // Clear form inside modal when closing
-    const form = modal.querySelector('form');
-    if (form) form.reset();
-  }
-}
-
-function editMultiEntry(formId, index) {
-  const tableBody = document.querySelector(`#${formId} .data-table tbody`);
-  const row = tableBody.rows[index];
-  if (!row) return;
-
-  const currentEntries = JSON.parse(localStorage.getItem(`${formId}_entries`)) || [];
-  const entryToEdit = currentEntries[index];
-
-  if (!entryToEdit) {
-    showToast('Error: Entry not found for editing.', 'error');
-    return;
-  }
-
-  let modalId = '';
-  let modalFormId = '';
-  let recordIdInputId = '';
-
-  if (formId === 'dreamsForm') {
-    modalId = 'dreamEntryModal';
-    modalFormId = 'modalDreamForm';
-    recordIdInputId = 'modalDreamRecordId';
-    document.getElementById('modalTimeFrame').value = entryToEdit.time_frame || '';
-    document.getElementById('modalDream').value = entryToEdit.dream || '';
-    document.getElementById('modalWhy').value = entryToEdit.why || '';
-  } else if (formId === 'expensesForm') {
-    modalId = 'expenseEntryModal';
-    modalFormId = 'modalExpenseForm';
-    recordIdInputId = 'modalExpenseRecordId';
-    document.getElementById('modalItem').value = entryToEdit.item || '';
-    document.getElementById('modalAmount').value = formatCurrency(entryToEdit.amount);
-    document.getElementById('modalCategory').value = entryToEdit.category || '';
-    document.getElementById('modalExpenseDate').value = entryToEdit.date ? new Date(entryToEdit.date).toISOString().split('T')[0] : '';
-    document.getElementById('modalDescription').value = entryToEdit.description || '';
-    setupCurrencyInput(document.getElementById('modalAmount')); // Re-apply currency input for modal
-  } else if (formId === 'partnersForm') {
-    modalId = 'partnerEntryModal';
-    modalFormId = 'modalPartnerForm';
-    recordIdInputId = 'modalPartnerRecordId';
-    document.getElementById('modalPartnerName').value = entryToEdit.name || '';
-    document.getElementById('modalPartnerContact').value = entryToEdit.contact || '';
-    document.getElementById('modalPartnerEmail').value = entryToEdit.email || '';
-    document.getElementById('modalPartnerStatus').value = entryToEdit.status || '';
-    document.getElementById('modalPartnerNotes').value = entryToEdit.notes || '';
-  } else if (formId === 'clientsForm') { // Field Trainings
-    modalId = 'clientEntryModal';
-    modalFormId = 'modalClientForm';
-    recordIdInputId = 'modalClientRecordId';
-    document.getElementById('modalClientName').value = entryToEdit.client_name || '';
-    document.getElementById('modalClientDate').value = entryToEdit.date ? new Date(entryToEdit.date).toISOString().split('T')[0] : '';
-    document.getElementById('modalClientType').value = entryToEdit.type_of_training || '';
-    document.getElementById('modalClientOutcome').value = entryToEdit.outcome || '';
-    document.getElementById('modalClientNotes').value = entryToEdit.notes || '';
-  }
-
-  // Set the record_id for the modal form
-  document.getElementById(recordIdInputId).value = entryToEdit.record_id;
-  document.getElementById(recordIdInputId).dataset.originalIndex = index; // Store original index
-
-  openModal(modalId);
-}
-
-function saveModalEntry(formId) {
-  const sheetName = formSheetMap[formId];
-  if (!currentAgent || !currentAgent.agentName || !sheetName) {
-    showToast('Login required or invalid form context.', 'error');
-    return;
-  }
-
-  // Remove showLoading() call
-
-  let modalId = '';
-  let modalFormId = '';
-  let recordIdInputId = '';
-
-  if (formId === 'dreamsForm') {
-    modalId = 'dreamEntryModal';
-    modalFormId = 'modalDreamForm';
-    recordIdInputId = 'modalDreamRecordId';
-  } else if (formId === 'expensesForm') {
-    modalId = 'expenseEntryModal';
-    modalFormId = 'modalExpenseForm';
-    recordIdInputId = 'modalExpenseRecordId';
-  } else if (formId === 'partnersForm') {
-    modalId = 'partnerEntryModal';
-    modalFormId = 'modalPartnerForm';
-    recordIdInputId = 'modalPartnerRecordId';
-  } else if (formId === 'clientsForm') { // Field Trainings
-    modalId = 'clientEntryModal';
-    modalFormId = 'modalClientForm';
-    recordIdInputId = 'modalClientRecordId';
-  }
-
-  const form = document.getElementById(modalFormId);
-  const formData = new FormData(form);
-  
-  let recordId = document.getElementById(recordIdInputId).value;
-  const originalIndex = document.getElementById(recordIdInputId).dataset.originalIndex;
-
-  // If it's a new entry, generate a new record_id
-  if (!recordId) {
-      recordId = generateRecordId(currentAgent.agentName, formId);
-      document.getElementById(recordIdInputId).value = recordId;
-  }
-
-  const newEntry = { record_id: recordId, agent: currentAgent.agentName }; // Always include record_id and agent
-  for (let [key, value] of formData.entries()) {
-    if (key !== 'record_id') { // Don't re-add record_id from formData
-      if (key === 'amount' && formId === 'expensesForm') {
-        newEntry[key] = parseCurrency(value); // Parse currency for expenses
-      } else {
-        newEntry[key] = value;
-      }
-    }
-  }
-
-  let currentEntries = JSON.parse(localStorage.getItem(`${formId}_entries`)) || [];
-
-  if (originalIndex !== undefined && currentEntries[originalIndex] && currentEntries[originalIndex].record_id === recordId) {
-    // Update existing entry
-    currentEntries[originalIndex] = newEntry;
-    showToast('Entry updated in local storage.', 'info');
-  } else {
-    // Add new entry
-    currentEntries.push(newEntry);
-    showToast('New entry added to local storage.', 'info');
-  }
-
-  localStorage.setItem(`${formId}_entries`, JSON.stringify(currentEntries));
-  renderMultiEntryTable(formId, currentEntries);
-  closeModal(modalId);
-}
-
-function deleteMultiEntry(formId, index) {
-  if (!confirm('Are you sure you want to delete this entry?')) {
-    return;
-  }
-
-  let currentEntries = JSON.parse(localStorage.getItem(`${formId}_entries`)) || [];
-  if (index >= 0 && index < currentEntries.length) {
-    currentEntries.splice(index, 1); // Remove the entry
-    localStorage.setItem(`${formId}_entries`, JSON.stringify(currentEntries));
-    showToast('Entry deleted from local storage.', 'success');
-    renderMultiEntryTable(formId, currentEntries); // Re-render the table
-  } else {
-    showToast('Error: Entry not found for deletion.', 'error');
-  }
-}
-
-function bulkSaveMultiEntryForm(formId) {
-  if (!currentAgent || !currentAgent.agentName) {
-    showToast('Login required to save data.', 'error');
-    return;
-  }
-
-  showToast('Saving all entries...', 'info');
-  
-  const sheetName = formSheetMap[formId];
-  const saveStatusElementId = `${formId}SaveStatus`;
-  const entriesToSave = JSON.parse(localStorage.getItem(`${formId}_entries`)) || [];
-
-  if (!sheetName) {
-    showToast('Error: Sheet not mapped for this form.', 'error');
-    return;
-  }
-
-  updateSaveStatus('Saving all entries...', saveStatusElementId);
-
-  const payload = {
-    action: 'bulkUpdateEntries', // New action for bulk updates
-    sheetName: sheetName,
-    agent: currentAgent.agentName,
-    formId: formId, // Pass formId for server-side mapping to sheetName
-    entries: entriesToSave // Array of all entries for the current agent
-  };
-
-  console.log('Bulk save payload:', payload);
-
-  fetch(`https://script.google.com/macros/s/${scriptId}/exec`, {
-    method: 'POST',
-    mode: 'no-cors',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: JSON.stringify(payload)
-  })
-  .then(response => {
-    console.log('Bulk data sent (no-cors response):', response);
-    showToast('All entries saved successfully!', 'success');
-    updateSaveStatus('All Saved!', saveStatusElementId);
-    
-    // After successful save, reload from server to ensure local storage is in sync
-    setTimeout(() => {
-      loadFormData(formId, true); // Force skip cache
-    }, 2000); // Wait 2 seconds to ensure server has processed the data
-  })
-  .catch(error => {
-    console.error('Error saving bulk data:', error);
-    showToast('Error saving all entries: ' + error.message, 'error');
-    updateSaveStatus('Error saving all!', saveStatusElementId);
+  // Check all page-content elements
+  console.log('Page content elements:');
+  document.querySelectorAll('.page-content').forEach(page => {
+    console.log(`- ${page.id}: visible=${!page.classList.contains('hidden')}`);
   });
+  
+  // Check all sidebar links
+  console.log('Sidebar links:');
+  document.querySelectorAll('.sidebar-menu a').forEach(link => {
+    console.log(`- ${link.getAttribute('data-page')}: visible=${link.style.display !== 'none'}, active=${link.classList.contains('active')}`);
+  });
+  
+  // Check current agent
+  console.log('Current agent:', currentAgent);
+  
+  // Check current page
+  console.log('Current page:', currentPage);
 }
 
-
-// --- Login / Logout Functions ---
-
-function handleLogin(event) {
-  event.preventDefault();
+// Add this login function
+function login() {
   const agentName = document.getElementById('agentName').value;
   const password = document.getElementById('password').value;
-  const loginError = document.getElementById('loginError');
   
   if (!agentName || !password) {
-    loginError.textContent = 'Please enter both agent name and password.';
-    loginError.style.display = 'block';
-    return;
-  }
-
-  console.log('Attempting login for agent:', agentName);
-  loginError.style.display = 'none';
-
-  const callbackName = 'handleLoginResponse';
-  window[callbackName] = function(response) {
-    console.log('Login Response:', response);
-    if (!response.error) {
-      currentAgent = response;
-      localStorage.setItem('currentAgent', JSON.stringify(currentAgent));
-      showDashboard();
-      initSheets(); // Ensure sheets are created on successful login
-      
-      // Add a delay to ensure the DOM is fully updated
-      setTimeout(checkAndFixSidebarDisplay, 500);
-    } else {
-      loginError.textContent = response.error;
+    const loginError = document.getElementById('loginError');
+    if (loginError) {
       loginError.style.display = 'block';
+      loginError.textContent = 'Agent name and password are required.';
     }
-  };
-
-  const script = document.createElement('script');
-  script.src = `https://script.google.com/macros/s/${scriptId}/exec?callback=${callbackName}&action=login&agent=${encodeURIComponent(agentName)}&password=${encodeURIComponent(password)}`;
-  document.head.appendChild(script);
-}
-
-function handleLogout() {
-  if (confirm('Are you sure you want to log out?')) {
-    // Remove showLoading() call
-    localStorage.removeItem('currentAgent');
-    currentAgent = null;
-    document.getElementById('loginPage').classList.remove('hidden');
-    document.getElementById('dashboardPage').classList.add('hidden');
-    document.getElementById('loginForm').reset();
-    document.getElementById('loginError').style.display = 'none';
-    // Remove hideLoading() call
+    return false;
   }
-}
-
-
-
-
-function showDashboard() {
-  document.getElementById('loginPage').classList.add('hidden');
-  document.getElementById('dashboardPage').classList.remove('hidden');
   
-  // Update agent name and role in sidebar and header
-  if (currentAgent && !currentAgent.error && !currentAgent.status) {
-    console.log('Setting up dashboard for agent:', currentAgent);
+  console.log('Attempting login for:', agentName);
+  
+  // Create a unique callback name
+  const callbackName = 'handleLoginResponse_' + new Date().getTime();
+  window[callbackName] = function(response) {
+    console.log('Login response:', response);
     
-    // Update agent name display
-    const agentNameDisplay = document.getElementById('agentNameDisplay');
-    if (agentNameDisplay) {
-      agentNameDisplay.textContent = currentAgent.agentName || 'Unknown';
-    } else {
-      console.error('Agent name display element not found');
-    }
-    
-    // Update header agent name
-    const headerAgentName = document.getElementById('headerAgentName');
-    if (headerAgentName) {
-      headerAgentName.textContent = currentAgent.agentName || 'Unknown';
-    } else {
-      console.error('Header agent name element not found');
-    }
-    
-    // Update agent role display
-    const agentRoleDisplay = document.getElementById('agentRoleDisplay');
-    if (agentRoleDisplay) {
-      agentRoleDisplay.textContent = currentAgent.role || 'user';
-    } else {
-      console.error('Agent role display element not found');
-    }
-    
-    // Update agent avatar
-    const agentAvatar = document.getElementById('agentAvatar');
-    if (agentAvatar) {
-      if (currentAgent.avatarUrl) {
-        agentAvatar.src = currentAgent.avatarUrl;
-      } else {
-        // Generate avatar from name if no avatar URL is provided
-        const name = encodeURIComponent(currentAgent.agentName || 'User');
-        agentAvatar.src = `https://ui-avatars.com/api/?name=${name}&background=random`;
+    if (response.error) {
+      const loginError = document.getElementById('loginError');
+      if (loginError) {
+        loginError.style.display = 'block';
+        loginError.textContent = response.error;
       }
-    } else {
-      console.error('Agent avatar element not found');
-    }
-  } else {
-    console.error('Current agent is null, undefined, or has an error:', currentAgent);
-    // Handle error case - redirect to login
-    if (currentAgent && (currentAgent.error || currentAgent.status === 'error')) {
-      showToast('Login error: ' + (currentAgent.error || currentAgent.message || 'Unknown error'), 'error');
-      setTimeout(() => {
-        handleLogout();
-      }, 2000);
       return;
     }
-  }
-  
-  // Set up role-based access control
-  setupRoleBasedAccess();
-  
-  // Navigate to dashboard by default
-  if (document.getElementById('dashboardPageContent')) {
+    
+    // Login successful
+    currentAgent = {
+      agentName: response.agentName,
+      role: response.role || 'user',
+      avatarUrl: response.avatarUrl || ''
+    };
+    
+    console.log('Login successful. Current agent:', currentAgent);
+    console.log('Role from server:', response.role);
+    
+    // Save to session storage
+    sessionStorage.setItem('currentAgent', JSON.stringify(currentAgent));
+    
+    // Update UI - check if elements exist before accessing
+    const loginPage = document.getElementById('loginPage');
+    const appContainer = document.getElementById('appContainer');
+    const dashboardPage = document.getElementById('dashboardPage');
+    
+    if (loginPage) loginPage.style.display = 'none';
+    
+    // Try both appContainer and dashboardPage
+    if (appContainer) {
+      appContainer.style.display = 'flex';
+    } else if (dashboardPage) {
+      dashboardPage.style.display = 'flex';
+    }
+    
+    // Set up role-based access
+    setupRoleBasedAccess();
+    
+    // Navigate to dashboard
     navigateTo('dashboardPageContent');
-  } else if (document.getElementById('dashboard')) {
-    navigateTo('dashboard');
-  } else {
-    console.error('Dashboard page not found');
-    // Try to navigate to the first visible page
-    const firstPage = document.querySelector('.page-content');
-    if (firstPage) {
-      navigateTo(firstPage.id);
-    }
-  }
-  
-  console.log('Dashboard shown for agent:', currentAgent);
-}
-
-// Function to update date and time in header
-function updateDateTime() {
-  const dateElement = document.getElementById('currentDate');
-  const timeElement = document.getElementById('currentTime');
-  
-  if (dateElement && timeElement) {
-    const now = new Date();
     
-    // Format date: Monday, January 1, 2023
-    const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-    dateElement.textContent = now.toLocaleDateString('en-US', dateOptions);
+    // Show welcome message
+    showToast(`Welcome, ${currentAgent.agentName}! (${currentAgent.role})`, 'success');
     
-    // Format time: 12:00:00 PM
-    const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
-    timeElement.textContent = now.toLocaleTimeString('en-US', timeOptions);
+    // Update header with agent name
+    const headerAgentName = document.getElementById('headerAgentName');
+    if (headerAgentName) headerAgentName.textContent = currentAgent.agentName;
+    
+    // Update sidebar with agent info
+    const agentNameDisplay = document.getElementById('agentNameDisplay');
+    const agentRoleDisplay = document.getElementById('agentRoleDisplay');
+    const agentAvatar = document.getElementById('agentAvatar');
+    
+    if (agentNameDisplay) agentNameDisplay.textContent = currentAgent.agentName;
+    if (agentRoleDisplay) agentRoleDisplay.textContent = currentAgent.role;
+    if (agentAvatar && currentAgent.avatarUrl) {
+      agentAvatar.src = currentAgent.avatarUrl;
+    } else if (agentAvatar) {
+      // Set default avatar with agent's initials
+      agentAvatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentAgent.agentName)}&background=random`;
     }
-}
-
-// --- Event Listeners ---
-document.addEventListener('DOMContentLoaded', function() {
-  // Log all page-content elements to help debug
-  console.log('Available pages:');
-  document.querySelectorAll('.page-content').forEach(page => {
-    console.log(`- ${page.id}`);
-  });
-
-  updateDateTime(); // Initial call
-  setInterval(updateDateTime, 1000); // Update every second
-
-  // Check for existing login session
-  const storedAgent = localStorage.getItem('currentAgent');
-  if (storedAgent) {
-    currentAgent = JSON.parse(storedAgent);
-    showDashboard();
-    // No need to initSheets again here, as it's called on first successful login
-    // or when explicitly run via the init parameter in doGet
-  } else {
-    document.getElementById('loginPage').classList.remove('hidden');
-    document.getElementById('dashboardPage').classList.add('hidden');
-  }
-
-  // Login Form Submission
-  const loginForm = document.getElementById('loginForm');
-  if (loginForm) {
-    loginForm.addEventListener('submit', handleLogin);
-  }
-
-  // Logout Button
-  const logoutButton = document.getElementById('logoutButton');
-  if (logoutButton) {
-    logoutButton.addEventListener('click', handleLogout);
-  }
-
-  // Sidebar navigation
-  document.querySelectorAll('.sidebar-menu a').forEach(link => {
-    link.addEventListener('click', function(e) {
-      e.preventDefault();
-      const page = this.getAttribute('data-page');
-      
-      // Check if the page exists before navigating
-      const pageId = page === 'dashboard' ? 'dashboardPageContent' : page;
-      if (document.getElementById(pageId)) {
-        navigateTo(pageId);
-      } else {
-        console.error(`Page with ID "${pageId}" not found`);
-        showToast(`Error: Page not found`, 'error');
-      }
-    });
-  });
-  
-  // Call this function early
-  disableAllLoadingIndicators();
-
-  // Menu Toggle for mobile
-  const menuToggle = document.getElementById('menuToggle');
-  const sidebar = document.getElementById('sidebar');
-  const mainContent = document.getElementById('mainContent');
-  if (menuToggle) {
-    menuToggle.addEventListener('click', () => {
-      sidebar.classList.toggle('hidden');
-      mainContent.classList.toggle('full-width');
-    });
-  }
-
-  // Auto-save for single-entry forms
-  const singleEntryForms = ['personalForm', 'progressionsForm'];
-  singleEntryForms.forEach(formId => {
-    const form = document.getElementById(formId);
-    if (form) {
-      form.addEventListener('input', function() {
-        if (!autoSaveEnabled) return; // Skip if auto-save is disabled
-        
-        clearTimeout(autoSaveTimeout);
-        updateSaveStatus('Saving...', `${formId}SaveStatus`);
-        autoSaveTimeout = setTimeout(() => saveFormData(formId), AUTO_SAVE_DELAY);
-      });
-      
-      // Also attach a submit listener for manual save
-      form.addEventListener('submit', function(e) {
-        e.preventDefault();
-        clearTimeout(autoSaveTimeout); // Clear auto-save if manually submitting
-        saveFormData(formId);
-      });
-    }
-  });
-
-  // Auto-save/submit for multi-entry forms (within modals)
-  // For multi-entry forms, the entries are first saved to local storage
-  // and then a bulk save button is used to push all to Google Sheet.
-
-  // Dreams List Modals and Buttons
-  const dreamEntryModal = document.getElementById('dreamEntryModal');
-  const closeDreamModal = document.getElementById('closeDreamModal');
-  const addDreamEntryBtn = document.getElementById('addDreamEntryBtn');
-  const saveModalDreamBtn = document.getElementById('saveModalDreamBtn');
-  const saveDreamsBtn = document.getElementById('saveDreamsBtn');
-
-  if (addDreamEntryBtn) addDreamEntryBtn.addEventListener('click', () => {
-    openModal('dreamEntryModal');
-    document.getElementById('modalDreamForm').reset(); // Clear form for new entry
-    document.getElementById('modalDreamRecordId').value = ''; // Ensure no record ID for new
-    document.getElementById('modalDreamRecordId').dataset.originalIndex = ''; // Clear original index
-  });
-  if (closeDreamModal) closeDreamModal.addEventListener('click', () => closeModal('dreamEntryModal'));
-  if (dreamEntryModal) dreamEntryModal.addEventListener('click', (e) => { // Close when clicking outside
-    if (e.target === dreamEntryModal) closeModal('dreamEntryModal');
-  });
-  if (saveModalDreamBtn) saveModalDreamBtn.addEventListener('click', () => saveModalEntry('dreamsForm'));
-  if (saveDreamsBtn) saveDreamsBtn.addEventListener('click', () => bulkSaveMultiEntryForm('dreamsForm'));
-
-
-  // Expenses Modals and Buttons
-  const expenseEntryModal = document.getElementById('expenseEntryModal');
-  const closeExpenseModal = document.getElementById('closeExpenseModal');
-  const addExpenseEntryBtn = document.getElementById('addExpenseEntryBtn');
-  const saveModalExpenseBtn = document.getElementById('saveModalExpenseBtn');
-  const saveExpensesBtn = document.getElementById('saveExpensesBtn');
-
-  if (addExpenseEntryBtn) addExpenseEntryBtn.addEventListener('click', () => {
-    openModal('expenseEntryModal');
-    document.getElementById('modalExpenseForm').reset();
-    document.getElementById('modalExpenseRecordId').value = '';
-    document.getElementById('modalExpenseRecordId').dataset.originalIndex = '';
-    setupCurrencyInput(document.getElementById('modalAmount')); // Init for new entry
-  });
-  if (closeExpenseModal) closeExpenseModal.addEventListener('click', () => closeModal('expenseEntryModal'));
-  if (expenseEntryModal) expenseEntryModal.addEventListener('click', (e) => { // Close when clicking outside
-    if (e.target === expenseEntryModal) closeModal('expenseEntryModal');
-  });
-  if (saveModalExpenseBtn) saveModalExpenseBtn.addEventListener('click', () => saveModalEntry('expensesForm'));
-  if (saveExpensesBtn) saveExpensesBtn.addEventListener('click', () => bulkSaveMultiEntryForm('expensesForm'));
-
-  // Potential Business Partners Modals and Buttons
-  const partnerEntryModal = document.getElementById('partnerEntryModal');
-  const closePartnerModal = document.getElementById('closePartnerModal');
-  const addPartnerEntryBtn = document.getElementById('addPartnerEntryBtn');
-  const saveModalPartnerBtn = document.getElementById('saveModalPartnerBtn');
-  const savePartnersBtn = document.getElementById('savePartnersBtn');
-
-  if (addPartnerEntryBtn) addPartnerEntryBtn.addEventListener('click', () => {
-    openModal('partnerEntryModal');
-    document.getElementById('modalPartnerForm').reset();
-    document.getElementById('modalPartnerRecordId').value = '';
-    document.getElementById('modalPartnerRecordId').dataset.originalIndex = '';
-  });
-  if (closePartnerModal) closePartnerModal.addEventListener('click', () => closeModal('partnerEntryModal'));
-  if (partnerEntryModal) partnerEntryModal.addEventListener('click', (e) => {
-    if (e.target === partnerEntryModal) closeModal('partnerEntryModal');
-  });
-  if (saveModalPartnerBtn) saveModalPartnerBtn.addEventListener('click', () => saveModalEntry('partnersForm'));
-  if (savePartnersBtn) savePartnersBtn.addEventListener('click', () => bulkSaveMultiEntryForm('partnersForm'));
-
-  // Potential Field Trainings Modals and Buttons
-  const clientEntryModal = document.getElementById('clientEntryModal');
-  const closeClientModal = document.getElementById('closeClientModal');
-  const addClientEntryBtn = document.getElementById('addClientEntryBtn');
-  const saveModalClientBtn = document.getElementById('saveModalClientBtn');
-  const saveClientsBtn = document.getElementById('saveClientsBtn');
-
-  if (addClientEntryBtn) addClientEntryBtn.addEventListener('click', () => {
-    openModal('clientEntryModal');
-    document.getElementById('modalClientForm').reset();
-    document.getElementById('modalClientRecordId').value = '';
-    document.getElementById('modalClientRecordId').dataset.originalIndex = '';
-  });
-  if (closeClientModal) closeClientModal.addEventListener('click', () => closeModal('clientEntryModal'));
-  if (clientEntryModal) clientEntryModal.addEventListener('click', (e) => {
-    if (e.target === clientEntryModal) closeModal('clientEntryModal');
-  });
-  if (saveModalClientBtn) saveModalClientBtn.addEventListener('click', () => saveModalEntry('clientsForm'));
-  if (saveClientsBtn) saveClientsBtn.addEventListener('click', () => bulkSaveMultiEntryForm('clientsForm'));
-
-  // Add event listener for create user form
-  const createUserForm = document.getElementById('createUserForm');
-  if (createUserForm) {
-    createUserForm.addEventListener('submit', createUser);
-  }
-  
-  // Add event listener for user management page
-  document.querySelectorAll('.sidebar-menu a').forEach(link => {
-    link.addEventListener('click', function(e) {
-      e.preventDefault();
-      const page = this.getAttribute('data-page');
-      
-      // Load users when navigating to user management
-      if (page === 'user-management-form') {
-        loadUsers();
-      }
-      
-      navigateTo(page + (page === 'dashboard' ? 'PageContent' : ''));
-    });
-  });
-});
-
-// Call this function when the page loads to fix monthly income if it's there.
-// This is not directly related to tab creation but good practice for currency inputs.
-function fixMonthlyIncomeInput() {
-  const incomeInput = document.getElementById('monthlyIncome');
-  if (!incomeInput) return;
-  
-  // If it's already a text input, no need to change
-  if (incomeInput.type !== 'number') return;
-  
-  // Get the current value
-  const currentValue = incomeInput.value;
-  
-  // Create a new text input to replace the number input
-  const newInput = document.createElement('input');
-  newInput.type = 'text';
-  newInput.id = 'monthlyIncome';
-  newInput.name = 'monthly_income';
-  newInput.className = incomeInput.className;
-  
-  // Set the value and add event listeners
-  if (currentValue) {
-    newInput.value = formatCurrency(parseFloat(currentValue));
-  }
-  
-  // Replace the old input with the new one
-  incomeInput.parentNode.replaceChild(newInput, incomeInput);
-  
-  // Setup currency formatting
-  setupCurrencyInput(newInput);
-}
-
-// Call this function when the page loads
-document.addEventListener('DOMContentLoaded', function() {
-  // fixMonthlyIncomeInput(); // Call this if you have a monthlyIncome field in your form
-});
-
-// Add this function to completely disable any loading indicators
-function disableAllLoadingIndicators() {
-  // Override any loading functions with empty functions
-  window.showLoading = function() {};
-  window.hideLoading = function() {};
-  
-  // Remove any loading overlay elements
-  const loadingElements = document.querySelectorAll('[id*="loading"], [class*="loading"]');
-  loadingElements.forEach(el => {
-    if (el.id.toLowerCase().includes('loading') || 
-        (el.className && el.className.toLowerCase().includes('loading'))) {
-      el.style.display = 'none';
-    }
-  });
-}
-
-// Call this function early
-disableAllLoadingIndicators();
-
-// Add user management functions
-function loadUsers() {
-  if (!currentAgent || currentAgent.role !== 'admin') {
-    return;
-  }
-  
-  const callbackName = 'handleGetUsersResponse';
-  window[callbackName] = function(response) {
-    console.log('Get Users Response:', response);
-    if (response.status === 'success' && response.users) {
-      renderUsersTable(response.users);
-    } else {
-      showToast('Error loading users: ' + response.message, 'error');
-    }
+    
+    // Debug page elements
+    debugPageElements();
   };
   
+  // Create and append the script tag for JSONP request
   const script = document.createElement('script');
-  script.src = `https://script.google.com/macros/s/${scriptId}/exec?callback=${callbackName}&action=getUsers`;
-  document.head.appendChild(script);
-}
-
-function renderUsersTable(users) {
-  const tableBody = document.querySelector('#usersTable tbody');
-  tableBody.innerHTML = '';
-  
-  users.forEach(user => {
-    const row = tableBody.insertRow();
-    
-    row.insertCell().textContent = user.agentName;
-    row.insertCell().textContent = user.role || 'user';
-    row.insertCell().textContent = user.lastUpdated ? new Date(user.lastUpdated).toLocaleDateString() : 'N/A';
-    
-    const actionsCell = row.insertCell();
-    const deleteButton = document.createElement('button');
-    deleteButton.className = 'btn-delete';
-    deleteButton.innerHTML = '<i class="fas fa-trash"></i>';
-    deleteButton.onclick = function() { deleteUser(user.agentName); };
-    
-    const resetButton = document.createElement('button');
-    resetButton.className = 'btn-edit ml-2';
-    resetButton.innerHTML = '<i class="fas fa-key"></i>';
-    resetButton.onclick = function() { resetUserPassword(user.agentName); };
-    
-    actionsCell.appendChild(deleteButton);
-    actionsCell.appendChild(resetButton);
-  });
-}
-
-function createUser(event) {
-  event.preventDefault();
-  
-  if (!currentAgent || currentAgent.role !== 'admin') {
-    showToast('Admin access required.', 'error');
-    return;
-  }
-  
-  const form = document.getElementById('createUserForm');
-  const formData = new FormData(form);
-  const userData = {};
-  
-  for (let [key, value] of formData.entries()) {
-    userData[key] = value;
-  }
-  
-  // Add timestamp
-  userData.lastUpdated = new Date().toISOString();
-  
-  const callbackName = 'handleCreateUserResponse';
-  window[callbackName] = function(response) {
-    console.log('Create User Response:', response);
-    if (response.status === 'success') {
-      showToast('User created successfully!', 'success');
-      form.reset();
-      loadUsers(); // Reload the user list
-    } else {
-      showToast('Error creating user: ' + response.message, 'error');
-    }
-  };
-  
-  // Log the data being sent for debugging
-  console.log('Creating user with data:', userData);
-  
-  const script = document.createElement('script');
-  script.src = `https://script.google.com/macros/s/${scriptId}/exec?callback=${callbackName}&action=createUser&data=${encodeURIComponent(JSON.stringify(userData))}`;
-  document.head.appendChild(script);
-}
-
-function deleteUser(agentName) {
-  if (!confirm(`Are you sure you want to delete user "${agentName}"?`)) {
-    return;
-  }
-  
-  if (!currentAgent || currentAgent.role !== 'admin') {
-    showToast('Admin access required.', 'error');
-    return;
-  }
-  
-  const callbackName = 'handleDeleteUserResponse';
-  window[callbackName] = function(response) {
-    console.log('Delete User Response:', response);
-    if (response.status === 'success') {
-      showToast('User deleted successfully!', 'success');
-      loadUsers(); // Reload the user list
-    } else {
-      showToast('Error deleting user: ' + response.message, 'error');
-    }
-  };
-  
-  const script = document.createElement('script');
-  script.src = `https://script.google.com/macros/s/${scriptId}/exec?callback=${callbackName}&action=deleteUser&agentName=${encodeURIComponent(agentName)}`;
-  document.head.appendChild(script);
-}
-
-function resetUserPassword(agentName) {
-  const newPassword = prompt(`Enter new password for user "${agentName}":`);
-  if (!newPassword) {
-    return;
-  }
-  
-  if (!currentAgent || currentAgent.role !== 'admin') {
-    showToast('Admin access required.', 'error');
-    return;
-  }
-  
-  const callbackName = 'handleResetPasswordResponse';
-  window[callbackName] = function(response) {
-    console.log('Reset Password Response:', response);
-    if (response.status === 'success') {
-      showToast('Password reset successfully!', 'success');
-    } else {
-      showToast('Error resetting password: ' + response.message, 'error');
-    }
-  };
-  
-  const script = document.createElement('script');
-  script.src = `https://script.google.com/macros/s/${scriptId}/exec?callback=${callbackName}&action=resetPassword&agentName=${encodeURIComponent(agentName)}&password=${encodeURIComponent(newPassword)}`;
-  document.head.appendChild(script);
-}
-
-// Add this function to load all personal details for admin
-function loadAllPersonalDetails() {
-  if (!currentAgent || currentAgent.role !== 'admin') {
-    return;
-  }
-  
-  console.log('Loading all personal details for admin');
-  showToast('Loading personal details...', 'info');
-  
-  const callbackName = 'handleGetAllPersonalDetailsResponse';
-  window[callbackName] = function(response) {
-    console.log('Get All Personal Details Response:', response);
-    if (response.status === 'success' && response.entries) {
-      console.log(`Received ${response.entries.length} personal detail entries`);
-      renderAllPersonalDetailsTable(response.entries);
-      showToast(`Loaded ${response.entries.length} personal detail records`, 'success');
-    } else {
-      console.error('Error loading personal details:', response.message || 'Unknown error');
-      showToast('Error loading personal details: ' + (response.message || 'Unknown error'), 'error');
-    }
-  };
-  
-  const script = document.createElement('script');
-  const timestamp = new Date().getTime(); // Add timestamp to prevent caching
-  script.src = `https://script.google.com/macros/s/${scriptId}/exec?callback=${callbackName}&action=getAllPersonalDetails&t=${timestamp}`;
+  script.src = `https://script.google.com/macros/s/${scriptId}/exec?callback=${callbackName}&action=login&agent=${encodeURIComponent(agentName)}&password=${encodeURIComponent(password)}`;
   
   // Add error handling
   script.onerror = function() {
-    console.error('Failed to load personal details - script loading error');
-    showToast('Error loading personal details: Network error', 'error');
+    console.error('Login script loading error');
+    const loginError = document.getElementById('loginError');
+    if (loginError) {
+      loginError.style.display = 'block';
+      loginError.textContent = 'Network error. Please try again.';
+    }
   };
   
   document.head.appendChild(script);
-  console.log('Sent request to load all personal details');
+  return false; // Prevent form submission
 }
 
-// Render the personal details table for admin
-function renderAllPersonalDetailsTable(entries) {
-  const tableBody = document.querySelector('#allPersonalDetailsTable tbody');
-  if (!tableBody) {
-    console.error('Personal details table body not found');
-    return;
-  }
-  
-  console.log('Rendering personal details table with entries:', entries);
-  tableBody.innerHTML = '';
-  
-  if (!entries || entries.length === 0) {
-    const row = tableBody.insertRow();
-    const cell = row.insertCell();
-    cell.colSpan = 9; // 9 columns total (no Agent Name column)
-    cell.textContent = 'No personal details found.';
-    cell.style.textAlign = 'center';
-    cell.style.padding = '20px';
-    console.log('No entries to display in personal details table');
-    return;
-  }
-  
-  entries.forEach((entry, index) => {
-    console.log(`Rendering entry ${index}:`, entry);
-    const row = tableBody.insertRow();
-    
-    // Helper function to safely get text content
-    const safeText = (value) => {
-      if (value === null || value === undefined) return '';
-      return String(value);
-    };
-    
-    // Name column is kept, Agent Name column is removed
-    row.insertCell().textContent = safeText(entry.name);
-    row.insertCell().textContent = safeText(entry.agent_id);
-    row.insertCell().textContent = safeText(entry.state);
-    row.insertCell().textContent = safeText(entry.npn);
-    row.insertCell().textContent = safeText(entry.number);
-    row.insertCell().textContent = safeText(entry.email);
-    row.insertCell().textContent = safeText(entry.children);
-    
-    // Format exam date if it exists
-    const examDateCell = row.insertCell();
-    if (entry.exam_date) {
-      try {
-        const date = new Date(entry.exam_date);
-        if (!isNaN(date.getTime())) {
-          examDateCell.textContent = date.toLocaleDateString();
-        } else {
-          examDateCell.textContent = safeText(entry.exam_date);
-        }
-      } catch (e) {
-        console.error('Error formatting date:', e);
-        examDateCell.textContent = safeText(entry.exam_date);
-      }
-    }
-    
-    const actionsCell = row.insertCell();
-    const viewBtn = document.createElement('button');
-    viewBtn.className = 'btn-edit';
-    viewBtn.innerHTML = '<i class="fas fa-eye"></i>';
-    viewBtn.onclick = function() { 
-      const agentName = entry.agentname || entry.agent;
-      console.log(`View details clicked for agent: ${agentName}`);
-      viewPersonalDetails(agentName); 
-    };
-    
-    actionsCell.appendChild(viewBtn);
-  });
-  
-  console.log(`Personal details table rendered with ${entries.length} rows`);
-}
-
-// View personal details for a specific agent
-function viewPersonalDetails(agentName) {
-  if (!currentAgent || currentAgent.role !== 'admin') {
-    return;
-  }
-  
-  const callbackName = 'handleGetAgentPersonalDetailsResponse';
+// Function to check and fix admin user
+function checkAndFixAdmin() {
+  console.log('Checking and fixing admin user...');
+  const callbackName = 'handleCheckAdminResponse_' + new Date().getTime();
   window[callbackName] = function(response) {
-    console.log('Get Agent Personal Details Response:', response);
-    if (response && !response.error) {
-      showPersonalDetailsModal(response);
+    console.log('Check admin response:', response);
+    if (response.status === 'success') {
+      showToast('Admin user checked and fixed if needed', 'success');
     } else {
-      showToast('Error loading agent details: ' + (response.error || 'Unknown error'), 'error');
+      showToast('Error checking admin user: ' + response.message, 'error');
     }
   };
-  
+
   const script = document.createElement('script');
-  const timestamp = new Date().getTime(); // Add timestamp to prevent caching
-  script.src = `https://script.google.com/macros/s/${scriptId}/exec?callback=${callbackName}&action=getAgentPersonalDetails&agent=${encodeURIComponent(agentName)}&t=${timestamp}`;
+  script.src = `https://script.google.com/macros/s/${scriptId}/exec?callback=${callbackName}&action=checkAdmin`;
   document.head.appendChild(script);
 }
 
-// Show personal details in a modal
-function showPersonalDetailsModal(details) {
-  // Create a modal to display the details
-  const modal = document.createElement('div');
-  modal.className = 'modal';
-  modal.style.display = 'block';
-  
-  const modalContent = document.createElement('div');
-  modalContent.className = 'modal-content';
-  
-  const closeButton = document.createElement('button');
-  closeButton.className = 'modal-close-button';
-  closeButton.innerHTML = '&times;';
-  closeButton.onclick = function() {
-    document.body.removeChild(modal);
-  };
-  
-  const title = document.createElement('h3');
-  title.className = 'card-title mb-4';
-  title.textContent = 'Personal Details for ' + (details.name || details.agentname || details.agent || 'Agent');
-  
-  const detailsContainer = document.createElement('div');
-  detailsContainer.className = 'grid grid-cols-2 gap-4';
-  
-  // Add each detail to the container
-  const fields = [
-   
-    { label: 'Agent ID', key: 'agent_id' },
-    { label: 'State', key: 'state' },
-    { label: 'NPN', key: 'npn' },
-    { label: 'Number', key: 'number' },
-    { label: 'Email', key: 'email' },
-    { label: 'Children', key: 'children' },
-    { label: 'Exam Date', key: 'exam_date' }
-  ];
-  
-  fields.forEach(field => {
-    const fieldContainer = document.createElement('div');
-    
-    const label = document.createElement('strong');
-    label.textContent = field.label + ': ';
-    
-    const value = document.createElement('span');
-    // Format date fields
-    if (field.key === 'exam_date' && details[field.key]) {
-      try {
-        const date = new Date(details[field.key]);
-        if (!isNaN(date.getTime())) {
-          value.textContent = date.toLocaleDateString();
-        } else {
-          value.textContent = details[field.key] || 'N/A';
-        }
-      } catch (e) {
-        value.textContent = details[field.key] || 'N/A';
-      }
-    } else {
-      value.textContent = details[field.key] || 'N/A';
-    }
-    
-    fieldContainer.appendChild(label);
-    fieldContainer.appendChild(value);
-    detailsContainer.appendChild(fieldContainer);
-  });
-  
-  modalContent.appendChild(closeButton);
-  modalContent.appendChild(title);
-  modalContent.appendChild(detailsContainer);
-  modal.appendChild(modalContent);
-  document.body.appendChild(modal);
-}
-
-// Add a function to manually refresh the personal details table
-function refreshPersonalDetails() {
-  if (currentAgent && currentAgent.role === 'admin') {
-    loadAllPersonalDetails();
-    showToast('Refreshing all personal details...', 'info');
-  } else {
-    loadPersonalDetails();
-    showToast('Refreshing your personal details...', 'info');
-  }
-}
-
-// Add this to document ready or initialization
+// Check for existing session on page load
 document.addEventListener('DOMContentLoaded', function() {
-  // Add refresh button to personal details page
-  const personalDetailsPage = document.getElementById('personal-details-form');
-  if (personalDetailsPage) {
-    const refreshButton = document.createElement('button');
-    refreshButton.className = 'btn btn-secondary mb-4';
-    refreshButton.innerHTML = '<i class="fas fa-sync-alt mr-2"></i> Refresh Data';
-    refreshButton.onclick = refreshPersonalDetails;
-    
-    // Insert after the page description
-    const pageDescription = personalDetailsPage.querySelector('.page-description');
-    if (pageDescription && pageDescription.parentNode) {
-      pageDescription.parentNode.insertBefore(refreshButton, pageDescription.nextSibling);
-    }
-  }
-});
-
-// Add this function to check and fix the sidebar display
-function checkAndFixSidebarDisplay() {
-  console.log('Checking sidebar display...');
+  console.log('DOM Content Loaded - Setting up event listeners');
   
-  if (!currentAgent) {
-    console.error('No current agent found');
-    return;
-  }
+  // Check and fix admin user
+  checkAndFixAdmin();
   
-  // Check if sidebar elements exist and update them
-  const agentNameDisplay = document.getElementById('agentNameDisplay');
-  const agentRoleDisplay = document.getElementById('agentRoleDisplay');
-  const agentAvatar = document.getElementById('agentAvatar');
-  
-  if (agentNameDisplay) {
-    if (agentNameDisplay.textContent === 'Agent Name' || !agentNameDisplay.textContent.trim()) {
-      console.log('Fixing agent name display');
-      agentNameDisplay.textContent = currentAgent.agentName || 'Unknown';
-    }
-  }
-  
-  if (agentRoleDisplay) {
-    if (agentRoleDisplay.textContent === 'Role' || !agentRoleDisplay.textContent.trim()) {
-      console.log('Fixing agent role display');
-      agentRoleDisplay.textContent = currentAgent.role || 'user';
-    }
-  }
-  
-  if (agentAvatar) {
-    if (agentAvatar.src.includes('ui-avatars.com/api/?name=Juan+Dela+Cruz')) {
-      console.log('Fixing agent avatar');
-      if (currentAgent.avatarUrl) {
-        agentAvatar.src = currentAgent.avatarUrl;
-      } else {
-        const name = encodeURIComponent(currentAgent.agentName || 'User');
-        agentAvatar.src = `https://ui-avatars.com/api/?name=${name}&background=random`;
-      }
-    }
-  }
-}
-
-// Add this to the document ready function
-document.addEventListener('DOMContentLoaded', function() {
-  // Check if user is already logged in
-  const savedAgent = localStorage.getItem('currentAgent');
-  if (savedAgent) {
-    try {
-      currentAgent = JSON.parse(savedAgent);
-      console.log('Restored logged in agent from localStorage:', currentAgent);
-      showDashboard();
-      
-      // Add a delay to ensure the DOM is fully loaded
-      setTimeout(checkAndFixSidebarDisplay, 500);
-    } catch (e) {
-      console.error('Error parsing saved agent:', e);
-      localStorage.removeItem('currentAgent');
-    }
-  }
-  
-  // Add event listener for login form
+  // Add event listener to login form
   const loginForm = document.getElementById('loginForm');
   if (loginForm) {
-    loginForm.addEventListener('submit', handleLogin);
+    loginForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      login();
+    });
   }
   
-  // Add event listener for logout button
+  // Add event listeners to sidebar links
+  document.querySelectorAll('.sidebar-menu a').forEach(link => {
+    link.addEventListener('click', function(e) {
+      e.preventDefault();
+      const pageId = this.getAttribute('data-page');
+      if (pageId) {
+        // Remove the -form suffix if it's already in the data-page attribute
+        const formSuffix = pageId.endsWith('-form') ? '' : '-form';
+        navigateTo(pageId + formSuffix);
+      }
+    });
+  });
+  
+  // Add logout functionality
   const logoutButton = document.getElementById('logoutButton');
   if (logoutButton) {
-    logoutButton.addEventListener('click', handleLogout);
-  }
-  
-  // Other initialization code...
-});
-
-// Update the handleLogin function to ensure proper display after login
-function handleLogin(event) {
-  event.preventDefault();
-  const agentName = document.getElementById('agentName').value;
-  const password = document.getElementById('password').value;
-  const loginError = document.getElementById('loginError');
-  
-  if (!agentName || !password) {
-    loginError.textContent = 'Please enter both agent name and password.';
-    loginError.style.display = 'block';
-    return;
-  }
-
-  console.log('Attempting login for agent:', agentName);
-  loginError.style.display = 'none';
-
-  const callbackName = 'handleLoginResponse';
-  window[callbackName] = function(response) {
-    console.log('Login Response:', response);
-    if (!response.error) {
-      currentAgent = response;
-      localStorage.setItem('currentAgent', JSON.stringify(currentAgent));
-      showDashboard();
-      initSheets(); // Ensure sheets are created on successful login
+    logoutButton.addEventListener('click', function(e) {
+      e.preventDefault();
+      // Clear session
+      sessionStorage.removeItem('currentAgent');
+      currentAgent = null;
       
-      // Add a delay to ensure the DOM is fully updated
-      setTimeout(checkAndFixSidebarDisplay, 500);
-    } else {
-      loginError.textContent = response.error;
-      loginError.style.display = 'block';
-    }
-  };
-
-  const script = document.createElement('script');
-  script.src = `https://script.google.com/macros/s/${scriptId}/exec?callback=${callbackName}&action=login&agent=${encodeURIComponent(agentName)}&password=${encodeURIComponent(password)}`;
-  document.head.appendChild(script);
-}
-
-// Add a button to the personal details form to manually refresh
-document.addEventListener('DOMContentLoaded', function() {
-  // Add event listener for the personal form submission
-  const personalForm = document.getElementById('personalForm');
-  if (personalForm) {
-    personalForm.addEventListener('submit', function(event) {
-      event.preventDefault();
-      saveFormData('personalForm');
+      // Show login page, hide app
+      const loginPage = document.getElementById('loginPage');
+      const dashboardPage = document.getElementById('dashboardPage');
+      
+      if (loginPage) loginPage.style.display = 'flex';
+      if (dashboardPage) dashboardPage.style.display = 'none';
+      
+      showToast('You have been logged out.', 'info');
     });
-    
-    // Add a manual refresh button if it doesn't exist
-    const personalDetailsForm = document.getElementById('personal-details-form');
-    if (personalDetailsForm && !document.getElementById('manualRefreshBtn')) {
-      const refreshButton = document.createElement('button');
-      refreshButton.id = 'manualRefreshBtn';
-      refreshButton.className = 'btn btn-secondary mb-4';
-      refreshButton.innerHTML = '<i class="fas fa-sync-alt mr-1"></i> Manual Refresh';
-      refreshButton.onclick = function() {
-        refreshPersonalDetails();
-        return false;
-      };
-      
-      // Insert after the page description
-      const pageDescription = personalDetailsForm.querySelector('.page-description');
-      if (pageDescription && pageDescription.parentNode) {
-        pageDescription.parentNode.insertBefore(refreshButton, pageDescription.nextSibling);
-      } else {
-        // If no page description, insert at the beginning of the form container
-        const formContainer = personalDetailsForm.querySelector('.form-container');
-        if (formContainer) {
-          formContainer.insertBefore(refreshButton, formContainer.firstChild.nextSibling);
-        }
-      }
-    }
   }
   
-  // Check if user is already logged in
-  const savedAgent = localStorage.getItem('currentAgent');
+  // Check for existing session
+  console.log('Checking for existing session...');
+  const savedAgent = sessionStorage.getItem('currentAgent');
+  
   if (savedAgent) {
     try {
       currentAgent = JSON.parse(savedAgent);
-      console.log('Restored logged in agent from localStorage:', currentAgent);
-      showDashboard();
+      console.log('Found saved session for:', currentAgent.agentName, 'with role:', currentAgent.role);
       
-      // Add a delay to ensure the DOM is fully loaded
-      setTimeout(checkAndFixSidebarDisplay, 500);
+      // Hide login page, show app
+      const loginPage = document.getElementById('loginPage');
+      const dashboardPage = document.getElementById('dashboardPage');
+      
+      if (loginPage) loginPage.style.display = 'none';
+      if (dashboardPage) dashboardPage.style.display = 'flex';
+      
+      // Set up role-based access
+      setupRoleBasedAccess();
+      
+      // Update UI with agent info
+      const headerAgentName = document.getElementById('headerAgentName');
+      if (headerAgentName) headerAgentName.textContent = currentAgent.agentName;
+      
+      const agentNameDisplay = document.getElementById('agentNameDisplay');
+      const agentRoleDisplay = document.getElementById('agentRoleDisplay');
+      const agentAvatar = document.getElementById('agentAvatar');
+      
+      if (agentNameDisplay) agentNameDisplay.textContent = currentAgent.agentName;
+      if (agentRoleDisplay) agentRoleDisplay.textContent = currentAgent.role;
+      if (agentAvatar && currentAgent.avatarUrl) {
+        agentAvatar.src = currentAgent.avatarUrl;
+      } else if (agentAvatar) {
+        agentAvatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentAgent.agentName)}&background=random`;
+      }
+      
+      // Navigate to dashboard
+      navigateTo('dashboardPageContent');
     } catch (e) {
-      console.error('Error parsing saved agent:', e);
-      localStorage.removeItem('currentAgent');
-    }
-  }
-  
-  // Add event listener for login form
-  const loginForm = document.getElementById('loginForm');
-  if (loginForm) {
-    loginForm.addEventListener('submit', handleLogin);
-  }
-});
-
-// Update the navigateTo function to load personal details
-function navigateTo(pageId) {
-  // First, check if the page exists
-  const targetPage = document.getElementById(pageId);
-  if (!targetPage) {
-    console.error(`Error: Page with ID "${pageId}" not found`);
-    showToast(`Error: Page not found`, 'error');
-    return; // Exit the function if the page doesn't exist
-  }
-
-  // Hide all pages and show the target page
-  const pages = document.querySelectorAll('.page-content');
-  pages.forEach(page => page.classList.add('hidden'));
-  targetPage.classList.remove('hidden');
-
-  // Update sidebar active link
-  const sidebarLinks = document.querySelectorAll('.sidebar-menu a');
-  sidebarLinks.forEach(link => link.classList.remove('active'));
-  
-  // Map dashboardPageContent to dashboard for sidebar link selection
-  const sidebarPageId = pageId === 'dashboardPageContent' ? 'dashboard' : pageId;
-  
-  // Add null check before accessing classList
-  const activeLink = document.querySelector(`.sidebar-menu a[data-page="${sidebarPageId}"]`);
-  if (activeLink) {
-    activeLink.classList.add('active');
-  } else {
-    console.warn(`No sidebar link found for page: ${pageId} (looking for ${sidebarPageId})`);
-  }
-
-  currentPage = pageId; // Update current page global variable
-  console.log(`Navigated to: ${pageId}`);
-
-  // Load data specific to the form - force reload from server
-  const formId = pageId.replace('-form', '');
-  if (formSheetMap[formId]) {
-    console.log(`Loading data for ${formId} after navigation`);
-    loadFormData(formId, true); // true = skip cache
-  }
-  
-  // If navigating to personal details, load the current user's personal details
-  if (pageId === 'personal-details-form') {
-    console.log('Loading personal details for current user');
-    setTimeout(() => {
-      loadPersonalDetails(); // Load the current user's personal details
-    }, 100);
-    
-    // If user is admin, also load all personal details
-    if (currentAgent && currentAgent.role === 'admin') {
-      console.log('Admin navigated to personal details, loading all personal details');
-      setTimeout(() => {
-        loadAllPersonalDetails(); // Delay slightly to ensure page is ready
-      }, 200);
-    }
-  }
-  
-  // If navigating to user management and user is admin, load users list
-  if (pageId === 'user-management-form' && currentAgent && currentAgent.role === 'admin') {
-    loadUsers();
-  }
-  
-  // Hide sidebar on mobile after navigation
-  if (window.innerWidth <= 768) {
-    document.getElementById('sidebar').classList.add('hidden');
-    document.getElementById('mainContent').classList.add('full-width');
-  }
-}
-
-// Add a function to manually refresh personal details
-function refreshPersonalDetails() {
-  console.log('Manually refreshing personal details');
-  showToast('Refreshing personal details...', 'info');
-  loadPersonalDetails();
-}
-
-// Make sure the personalForm has a hidden record_id field
-document.addEventListener('DOMContentLoaded', function() {
-  const personalForm = document.getElementById('personalForm');
-  if (personalForm) {
-    let recordIdField = personalForm.querySelector('input[name="record_id"]');
-    if (!recordIdField) {
-      recordIdField = document.createElement('input');
-      recordIdField.type = 'hidden';
-      recordIdField.name = 'record_id';
-      recordIdField.id = 'personalRecordId';
-      personalForm.appendChild(recordIdField);
+      console.error('Error restoring session:', e);
+      sessionStorage.removeItem('currentAgent');
     }
   }
 });
 
-// Update saveFormData to handle personal form specially
-function saveFormData(formId) {
-  if (!currentAgent || !currentAgent.agentName) {
-    showToast('Login required to save data.', 'error');
-    return;
-  }
-
-  const form = document.getElementById(formId);
-  const sheetName = formSheetMap[formId];
-  const saveStatusElementId = `${formId}SaveStatus`;
-  
-  if (!sheetName) {
-    showToast('Error: Sheet not mapped for this form.', 'error');
-    return;
-  }
-
-  // Show immediate feedback
-  showToast('Saving data...', 'info');
-  updateSaveStatus('Saving...', saveStatusElementId);
-
-  const formData = new FormData(form);
-  const recordIdInput = form.querySelector('input[name="record_id"]');
-  let recordId = recordIdInput ? recordIdInput.value : '';
-
-  // For single-entry forms like personalForm and progressionsForm,
-  // we want to use a consistent record_id format for each agent
-  // so we can update the same row instead of creating new ones
-  if (!recordId && ['personalForm', 'progressionsForm'].includes(formId)) {
-    recordId = `${currentAgent.agentName}_${formId}`;
-    if (recordIdInput) {
-      recordIdInput.value = recordId; // Update the form's hidden input
-    }
-  }
-
-  // Convert FormData to a regular object
-  const fields = {};
-  for (let [key, value] of formData.entries()) {
-    if (key === 'amount' && formId === 'expensesForm') {
-      fields[key] = parseCurrency(value); // Parse currency for expenses
-    } else {
-      fields[key] = value;
-    }
-  }
-  
-  // For checkboxes that aren't checked, they won't be in formData
-  // So we need to add them with a value of 'No'
-  const checkboxes = form.querySelectorAll('input[type="checkbox"]');
-  checkboxes.forEach(checkbox => {
-    if (!formData.has(checkbox.name)) {
-      fields[checkbox.name] = 'No';
-    }
-  });
-
-  // Add agent name to the data
-  fields['agent'] = currentAgent.agentName; // Ensure agent name is always saved
-
-  const payload = {
-    action: 'saveData', // This action is handled by doPost in Code.gs
-    sheetName: sheetName,
-    record_id: recordId,
-    fields: fields
-  };
-
-  console.log('Saving data with payload:', payload);
-
-  fetch(`https://script.google.com/macros/s/${scriptId}/exec`, {
-    method: 'POST',
-    mode: 'no-cors',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: JSON.stringify(payload)
-  })
-  .then(response => {
-    console.log('Form data sent (no-cors response):', response);
-    showToast('Data saved successfully!', 'success');
-    updateSaveStatus('Saved!', saveStatusElementId);
-    // For single-entry forms, reload the data to ensure UI is updated
-    if (!['dreamsForm', 'expensesForm', 'partnersForm', 'clientsForm'].includes(formId)) {
-        loadFormData(formId);
-    }
-  })
-  .catch(error => {
-    console.error('Error saving form data:', error);
-    showToast('Error saving data. Please try again.', 'error');
-    updateSaveStatus('Error saving!', saveStatusElementId);
-  });
-}
-
+// Function to load personal details for the current user
 function loadPersonalDetails() {
   if (!currentAgent || !currentAgent.agentName) {
-    console.error('No current agent found');
+    console.error('Cannot load personal details: No current agent');
     showToast('Please log in to view your personal details', 'error');
     return;
   }
@@ -1952,7 +1169,7 @@ function loadPersonalDetails() {
     statusElement.style.opacity = '1';
   }
   
-  // Create a unique callback name to avoid conflicts
+  // Create a unique callback name
   const callbackName = 'handleGetPersonalDetailsResponse_' + new Date().getTime();
   window[callbackName] = function(response) {
     console.log('Personal Details Response:', response);
@@ -1972,12 +1189,6 @@ function loadPersonalDetails() {
         statusElement.textContent = 'Error loading data';
       }
       
-      // If no data found, pre-fill the agent name field
-      const nameField = document.getElementById('name');
-      if (nameField && (!nameField.value || nameField.value.trim() === '')) {
-        nameField.value = currentAgent.agentName;
-      }
-      
       // Make sure record_id is set even if no data was found
       const recordIdInput = document.getElementById('personalRecordId');
       if (recordIdInput) {
@@ -1988,7 +1199,7 @@ function loadPersonalDetails() {
   
   const script = document.createElement('script');
   const timestamp = new Date().getTime(); // Add timestamp to prevent caching
-  const url = `https://script.google.com/macros/s/${scriptId}/exec?callback=${callbackName}&action=getAgentPersonalDetails&agent=${encodeURIComponent(currentAgent.agentName)}&t=${timestamp}`;
+  const url = `https://script.google.com/macros/s/${scriptId}/exec?callback=${callbackName}&action=getFormData&sheetName=Personal%20Details&sessionId=${encodeURIComponent(currentAgent.agentName)}&t=${timestamp}`;
   console.log('Loading personal details with URL:', url);
   script.src = url;
   
@@ -2003,150 +1214,274 @@ function loadPersonalDetails() {
   document.head.appendChild(script);
 }
 
-// Add a button to the personal details form to manually refresh
-document.addEventListener('DOMContentLoaded', function() {
-  // Add event listener for the personal form submission
-  const personalForm = document.getElementById('personalForm');
-  if (personalForm) {
-    personalForm.addEventListener('submit', function(event) {
-      event.preventDefault();
-      saveFormData('personalForm');
-    });
-    
-    // Add a manual refresh button if it doesn't exist
-    const personalDetailsForm = document.getElementById('personal-details-form');
-    if (personalDetailsForm && !document.getElementById('manualRefreshBtn')) {
-      const refreshButton = document.createElement('button');
-      refreshButton.id = 'manualRefreshBtn';
-      refreshButton.className = 'btn btn-secondary mb-4';
-      refreshButton.innerHTML = '<i class="fas fa-sync-alt mr-1"></i> Manual Refresh';
-      refreshButton.onclick = function() {
-        refreshPersonalDetails();
-        return false;
-      };
-      
-      // Insert at the beginning of the form
-      const formContainer = personalDetailsForm.querySelector('.form-container');
-      if (formContainer) {
-        formContainer.insertBefore(refreshButton, formContainer.firstChild);
-      }
-    }
-  }
-});
-
-// Update the refreshPersonalDetails function to handle both admin and regular users
-function refreshPersonalDetails() {
-  if (currentAgent && currentAgent.role === 'admin') {
-    loadAllPersonalDetails();
-    showToast('Refreshing all personal details...', 'info');
-  } else {
-    loadPersonalDetails();
-    showToast('Refreshing your personal details...', 'info');
-  }
-}
-
-// Debug function to help troubleshoot
-function debugPersonalDetails() {
-  console.log('=== DEBUG PERSONAL DETAILS ===');
-  console.log('Current Agent:', currentAgent);
-  
-  const personalForm = document.getElementById('personalForm');
-  if (!personalForm) {
-    console.error('Personal form not found in DOM');
+// Function to load all personal details for admin view
+function loadAllPersonalDetails() {
+  if (!currentAgent || !currentAgent.role !== 'admin') {
+    console.error('Cannot load all personal details: Not an admin');
     return;
   }
   
-  console.log('Form elements:');
-  Array.from(personalForm.elements).forEach(element => {
-    if (element.name) {
-      console.log(`${element.name}: ${element.value}`);
-    }
-  });
+  console.log('Loading all personal details (admin view)');
   
-  // Try to load data directly
-  console.log('Attempting to load personal details directly...');
-  
-  const callbackName = 'debugPersonalDetailsCallback';
+  // Create a unique callback name
+  const callbackName = 'handleGetAllPersonalDetailsResponse_' + new Date().getTime();
   window[callbackName] = function(response) {
-    console.log('Debug Personal Details Response:', response);
+    console.log('All Personal Details Response:', response);
+    
+    if (response && response.status === 'success' && response.entries) {
+      // Display the entries in a table or other UI element
+      console.log(`Received ${response.entries.length} personal detail entries`);
+      
+      // Here you would typically populate a table or other UI element
+      // For now, we'll just log the entries
+      response.entries.forEach(entry => {
+        console.log(`Entry for ${entry.agent || entry.name}: ${JSON.stringify(entry)}`);
+      });
+      
+      showToast(`Loaded ${response.entries.length} personal detail entries`, 'success');
+    } else {
+      console.error('Error loading all personal details:', response ? response.message : 'Unknown error');
+      showToast('Error loading all personal details', 'error');
+    }
   };
   
   const script = document.createElement('script');
-  const timestamp = new Date().getTime();
-  script.src = `https://script.google.com/macros/s/${scriptId}/exec?callback=${callbackName}&action=getAgentPersonalDetails&agent=${encodeURIComponent(currentAgent.agentName)}&t=${timestamp}`;
-  document.head.appendChild(script);
+  const timestamp = new Date().getTime(); // Add timestamp to prevent caching
+  const url = `https://script.google.com/macros/s/${scriptId}/exec?callback=${callbackName}&action=getAllPersonalDetails&t=${timestamp}`;
+  console.log('Loading all personal details with URL:', url);
+  script.src = url;
   
-  console.log('Debug request sent');
+  // Add error handling
+  script.onerror = function() {
+    console.error('Failed to load all personal details - script loading error');
+    showToast('Error loading all personal details: Network error', 'error');
+  };
+  
+  document.head.appendChild(script);
 }
 
-// Add a debug button to the personal details form
-document.addEventListener('DOMContentLoaded', function() {
-  const personalDetailsForm = document.getElementById('personal-details-form');
-  if (personalDetailsForm && !document.getElementById('debugBtn')) {
-    const debugButton = document.createElement('button');
-    debugButton.id = 'debugBtn';
-    debugButton.className = 'btn btn-secondary mb-4 ml-2';
-    debugButton.innerHTML = '<i class="fas fa-bug mr-1"></i> Debug';
-    debugButton.onclick = function() {
-      debugPersonalDetails();
-      return false;
-    };
-    
-    // Find the refresh button and add this after it
-    const refreshButton = personalDetailsForm.querySelector('button[id="manualRefreshBtn"]');
-    if (refreshButton && refreshButton.parentNode) {
-      refreshButton.parentNode.insertBefore(debugButton, refreshButton.nextSibling);
-    }
+// Function to load users for admin view
+function loadUsers() {
+  if (!currentAgent || currentAgent.role !== 'admin') {
+    console.error('Cannot load users: Not an admin');
+    showToast('Admin access required to view users', 'error');
+    return;
   }
-});
+  
+  console.log('Loading users (admin view)');
+  
+  // Create a unique callback name
+  const callbackName = 'handleGetUsersResponse_' + new Date().getTime();
+  window[callbackName] = function(response) {
+    console.log('Users Response:', response);
+    
+    if (response && response.status === 'success' && response.users) {
+      // Display the users in the users table
+      const usersTableBody = document.querySelector('#usersTable tbody');
+      if (!usersTableBody) {
+        console.error('Users table body not found');
+        return;
+      }
+      
+      usersTableBody.innerHTML = ''; // Clear existing rows
+      
+      if (response.users.length === 0) {
+        // Add a message row if no users
+        const row = usersTableBody.insertRow();
+        const cell = row.insertCell();
+        cell.colSpan = 4; // Span all columns
+        cell.textContent = 'No users found.';
+        cell.style.textAlign = 'center';
+        cell.style.padding = '20px';
+        return;
+      }
+      
+      // Add rows for each user
+      response.users.forEach(user => {
+        const row = usersTableBody.insertRow();
+        
+        // Agent Name
+        const nameCell = row.insertCell();
+        nameCell.textContent = user.agentName;
+        
+        // Role
+        const roleCell = row.insertCell();
+        roleCell.textContent = user.role || 'user';
+        
+        // Last Updated
+        const lastUpdatedCell = row.insertCell();
+        lastUpdatedCell.textContent = user.lastUpdated ? new Date(user.lastUpdated).toLocaleString() : 'Unknown';
+        
+        // Actions
+        const actionsCell = row.insertCell();
+        const editBtn = document.createElement('button');
+        editBtn.className = 'btn btn-sm btn-secondary mr-2';
+        editBtn.textContent = 'Edit';
+        editBtn.onclick = function() {
+          // Implement edit user functionality
+          console.log('Edit user:', user.agentName);
+        };
+        
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'btn btn-sm btn-danger';
+        deleteBtn.textContent = 'Delete';
+        deleteBtn.onclick = function() {
+          // Implement delete user functionality
+          console.log('Delete user:', user.agentName);
+        };
+        
+        actionsCell.appendChild(editBtn);
+        actionsCell.appendChild(deleteBtn);
+      });
+      
+      showToast(`Loaded ${response.users.length} users`, 'success');
+    } else {
+      console.error('Error loading users:', response ? response.message : 'Unknown error');
+      showToast('Error loading users', 'error');
+    }
+  };
+  
+  const script = document.createElement('script');
+  const timestamp = new Date().getTime(); // Add timestamp to prevent caching
+  const url = `https://script.google.com/macros/s/${scriptId}/exec?callback=${callbackName}&action=getUsers&t=${timestamp}`;
+  console.log('Loading users with URL:', url);
+  script.src = url;
+  
+  // Add error handling
+  script.onerror = function() {
+    console.error('Failed to load users - script loading error');
+    showToast('Error loading users: Network error', 'error');
+  };
+  
+  document.head.appendChild(script);
+}
 
-// Add this to document ready or initialization
-document.addEventListener('DOMContentLoaded', function() {
-  // Add the table to the personal details page for admin users
-  const personalDetailsPage = document.getElementById('personal-details-form');
-  if (personalDetailsPage && !document.getElementById('allPersonalDetailsTable')) {
-    // Create the admin table container
-    const adminTableContainer = document.createElement('div');
-    adminTableContainer.className = 'admin-only form-container mt-6';
-    adminTableContainer.innerHTML = `
-      <h3 class="text-xl font-semibold mb-4">All Personal Details (Admin View)</h3>
-      <div class="data-table-container">
-        <table id="allPersonalDetailsTable" class="data-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Agent ID</th>
-              <th>State</th>
-              <th>NPN</th>
-              <th>Number</th>
-              <th>Email</th>
-              <th>Children</th>
-              <th>Exam Date</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td colspan="9" class="text-center p-4">Loading personal details...</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    `;
-    
-    // Add the table to the page
-    personalDetailsPage.appendChild(adminTableContainer);
-    
-    // Add refresh button to personal details page
-    const refreshButton = document.createElement('button');
-    refreshButton.className = 'btn btn-secondary mb-4';
-    refreshButton.innerHTML = '<i class="fas fa-sync-alt mr-2"></i> Refresh Data';
-    refreshButton.onclick = refreshPersonalDetails;
-    
-    // Insert after the page description
-    const pageDescription = personalDetailsPage.querySelector('.page-description');
-    if (pageDescription && pageDescription.parentNode) {
-      pageDescription.parentNode.insertBefore(refreshButton, pageDescription.nextSibling);
-    }
+// Function to set up the progressions form
+function setupProgressionsForm() {
+  const form = document.getElementById('progressionsForm');
+  if (!form) {
+    console.error('Progressions form not found');
+    return;
   }
+  
+  console.log('Setting up progressions form');
+  
+  // Add event listeners to checkboxes for auto-save
+  const checkboxes = form.querySelectorAll('input[type="checkbox"]');
+  checkboxes.forEach(checkbox => {
+    checkbox.addEventListener('change', function() {
+      console.log(`Checkbox ${this.name} changed to ${this.checked}`);
+      if (autoSaveEnabled) {
+        console.log('Auto-save is enabled, saving form...');
+        saveProgressionsForm();
+      }
+    });
+  });
+  
+  // Add event listener to the save button
+  const saveButton = form.querySelector('button[type="submit"], button.save-button');
+  if (saveButton) {
+    saveButton.addEventListener('click', function(e) {
+      e.preventDefault();
+      console.log('Save button clicked');
+      saveProgressionsForm();
+    });
+  }
+  
+  // Load initial data
+  loadProgressionsData();
+}
+
+// Update navigateTo function to call setupProgressionsForm
+function navigateTo(pageId) {
+  console.log(`Attempting to navigate to: ${pageId}`);
+  
+  // Handle special case for dashboard
+  if (pageId === 'dashboard') {
+    pageId = 'dashboardPageContent';
+  }
+  
+  // Fix double -form suffix issue
+  if (pageId.endsWith('-form-form')) {
+    pageId = pageId.replace('-form-form', '-form');
+    console.log(`Fixed double form suffix, now navigating to: ${pageId}`);
+  }
+  
+  // Map sidebar data-page values to actual page IDs
+  const pageIdMap = {
+    'personal-details': 'personal-details-form',
+    'system-progressions': 'system-progressions-form',
+    'dreams-list': 'dreams-list-form',
+    'expenses-to-income-report': 'expenses-to-income-report-form',
+    'potential-business-partners': 'potential-business-partners-form',
+    'potential-field-trainings': 'potential-field-trainings-form',
+    'user-management': 'user-management-form'
+  };
+  
+  // Check if we need to map the pageId
+  if (pageIdMap[pageId]) {
+    console.log(`Mapping page ID from ${pageId} to ${pageIdMap[pageId]}`);
+    pageId = pageIdMap[pageId];
+  }
+  
+  // First, check if the page exists
+  const targetPage = document.getElementById(pageId);
+  if (!targetPage) {
+    console.error(`Error: Page with ID "${pageId}" not found`);
+    console.log('Available page IDs:');
+    document.querySelectorAll('.page-content').forEach(page => {
+      console.log(`- ${page.id}`);
+    });
+    showToast(`Error: Page not found (${pageId})`, 'error');
+    return; // Exit the function if the page doesn't exist
+  }
+
+  console.log(`Found target page: ${pageId}`);
+
+  // Hide all pages and show the target page
+  const pages = document.querySelectorAll('.page-content');
+  pages.forEach(page => {
+    page.classList.add('hidden');
+    console.log(`Hidden page: ${page.id}`);
+  });
+  
+  targetPage.classList.remove('hidden');
+  console.log(`Showing page: ${pageId}`);
+
+  // Load data for specific forms when navigating to them
+  if (pageId === 'system-progressions-form') {
+    console.log('Loading progressions data for newly navigated page');
+    setupProgressionsForm();
+  }
+  
+  // Update sidebar active link
+  const sidebarLinks = document.querySelectorAll('.sidebar-menu a');
+  sidebarLinks.forEach(link => link.classList.remove('active'));
+  
+  currentPage = pageId; // Update current page global variable
+  console.log(`Successfully navigated to: ${pageId}`);
+}
+
+// Add this to your document ready or initialization code
+document.addEventListener('DOMContentLoaded', function() {
+  // Other initialization code...
+  
+  // Set up event delegation for the progressions form
+  document.body.addEventListener('click', function(e) {
+    // Check if the clicked element is a checkbox in the progressions form
+    if (e.target.matches('#progressionsForm input[type="checkbox"]')) {
+      console.log(`Checkbox ${e.target.name} clicked, new state: ${e.target.checked}`);
+      if (autoSaveEnabled) {
+        console.log('Auto-save is enabled, saving form...');
+        saveProgressionsForm();
+      }
+    }
+    
+    // Check if the clicked element is the save button in the progressions form
+    if (e.target.matches('#progressionsForm button[type="submit"], #progressionsForm .save-button')) {
+      e.preventDefault();
+      console.log('Save button clicked');
+      saveProgressionsForm();
+    }
+  });
 });

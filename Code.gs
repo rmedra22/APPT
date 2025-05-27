@@ -56,12 +56,13 @@ function checkOrCreateSheets() {
 
 // Helper function for JSONP responses
 function jsonpResponse(data, callback) {
-  if (callback) {
-    return ContentService.createTextOutput(callback + '(' + JSON.stringify(data) + ')')
-      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  if (!callback) {
+    return ContentService.createTextOutput(JSON.stringify(data))
+      .setMimeType(ContentService.MimeType.JSON);
   }
-  return ContentService.createTextOutput(JSON.stringify(data))
-    .setMimeType(ContentService.MimeType.JSON);
+  
+  return ContentService.createTextOutput(callback + '(' + JSON.stringify(data) + ');')
+    .setMimeType(ContentService.MimeType.JAVASCRIPT);
 }
 
 function doGet(e) {
@@ -72,6 +73,19 @@ function doGet(e) {
     // Handle initialization request
     if (e.parameter.init === 'true') {
       return initializeSheets(e);
+    }
+    
+    // Handle admin check request
+    if (action === 'checkAdmin') {
+      const result = checkAndFixAdminUser();
+      return ContentService.createTextOutput(
+        callback + '(' + JSON.stringify(result) + ');'
+      ).setMimeType(ContentService.MimeType.JAVASCRIPT);
+    }
+    
+    // Handle login request
+    if (action === 'login') {
+      return handleLogin(e);
     }
     
     // Handle form data retrieval
@@ -93,28 +107,21 @@ function doGet(e) {
       ).setMimeType(ContentService.MimeType.JAVASCRIPT);
     }
     
-    // Handle getting personal details for a specific agent
-    if (action === 'getAgentPersonalDetails') {
-      const agentName = e.parameter.agent;
-      const result = getAgentPersonalDetails(agentName);
-      return ContentService.createTextOutput(
-        callback + '(' + JSON.stringify(result) + ');'
-      ).setMimeType(ContentService.MimeType.JAVASCRIPT);
+    // Handle saving data via GET request (for JSONP)
+    if (action === 'saveData') {
+      return handleSaveDataGet(e);
     }
     
-    // Handle login
-    if (action === 'login') {
-      return handleLogin(e);
-    }
-    
-    // Default response if no action specified
+    // Default response
     return ContentService.createTextOutput(
-      e.parameter.callback + '(' + JSON.stringify({ status: 'error', message: 'No action specified' }) + ');'
+      callback + '(' + JSON.stringify({ status: 'error', message: 'Unknown action' }) + ');'
     ).setMimeType(ContentService.MimeType.JAVASCRIPT);
+    
   } catch (error) {
     Logger.log('Error in doGet: %s', error.toString());
+    const callback = e.parameter.callback || 'callback';
     return ContentService.createTextOutput(
-      e.parameter.callback + '(' + JSON.stringify({ status: 'error', message: 'Server error: ' + error.toString() }) + ');'
+      callback + '(' + JSON.stringify({ status: 'error', message: 'Server error: ' + error.toString() }) + ');'
     ).setMimeType(ContentService.MimeType.JAVASCRIPT);
   }
 }
@@ -132,17 +139,30 @@ function doPost(e) {
     }
 
     Logger.log('Received POST data: ' + JSON.stringify(data));
+    
+    // Get callback parameter if it exists
+    const callback = e.parameter.callback;
 
     const action = data.action; // Get the action from the request
     
     // Handle bulk updates for multi-entry forms
     if (action === 'bulkUpdateEntries') {
-        return handleBulkUpdateEntries(data);
+        const result = handleBulkUpdateEntries(data);
+        if (callback) {
+          return ContentService.createTextOutput(callback + '(' + JSON.stringify(result) + ')')
+            .setMimeType(ContentService.MimeType.JAVASCRIPT);
+        }
+        return result;
     }
 
     const sheetName = data.sheetName;
     if (!sheetName) {
-      return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: 'Missing sheetName' }))
+      const errorResponse = { status: 'error', message: 'Missing sheetName' };
+      if (callback) {
+        return ContentService.createTextOutput(callback + '(' + JSON.stringify(errorResponse) + ')')
+          .setMimeType(ContentService.MimeType.JAVASCRIPT);
+      }
+      return ContentService.createTextOutput(JSON.stringify(errorResponse))
         .setMimeType(ContentService.MimeType.JSON);
     }
 
@@ -150,13 +170,23 @@ function doPost(e) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = ss.getSheetByName(sheetName);
     if (!sheet) {
-      return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: 'Sheet not found: ' + sheetName }))
+      const errorResponse = { status: 'error', message: 'Sheet not found: ' + sheetName };
+      if (callback) {
+        return ContentService.createTextOutput(callback + '(' + JSON.stringify(errorResponse) + ')')
+          .setMimeType(ContentService.MimeType.JAVASCRIPT);
+      }
+      return ContentService.createTextOutput(JSON.stringify(errorResponse))
         .setMimeType(ContentService.MimeType.JSON);
     }
 
     const lastColumn = sheet.getLastColumn();
     if (lastColumn === 0) {
-      return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: 'No headers found' }))
+      const errorResponse = { status: 'error', message: 'No headers found' };
+      if (callback) {
+        return ContentService.createTextOutput(callback + '(' + JSON.stringify(errorResponse) + ')')
+          .setMimeType(ContentService.MimeType.JAVASCRIPT);
+      }
+      return ContentService.createTextOutput(JSON.stringify(errorResponse))
         .setMimeType(ContentService.MimeType.JSON);
     }
 
@@ -191,13 +221,37 @@ function doPost(e) {
       }
     }
 
+    // Special handling for System Progressions
+    if (sheetName === 'System Progressions') {
+      Logger.log('Special handling for System Progressions');
+      Logger.log('Fields from client: ' + JSON.stringify(data.fields));
+      
+      // Ensure agentName is included
+      if (data.fields.agentName) {
+        Logger.log('agentName found in fields: ' + data.fields.agentName);
+      } else if (data.fields.agent) {
+        Logger.log('agent found in fields, copying to agentName: ' + data.fields.agent);
+        data.fields.agentName = data.fields.agent;
+      } else {
+        Logger.log('No agent or agentName found in fields');
+      }
+    }
+
     const rowData = headers.map(header => {
       const key = header.toLowerCase().replace(/ /g, '_');
       if ((header === 'Record ID' || header.toLowerCase() === 'record_id')) {
         return data.record_id || ''; // Ensure record_id is picked up
       }
+      
+      // Special case for agentName in System Progressions
+      if (sheetName === 'System Progressions' && header === 'agentName') {
+        return data.fields.agentName || data.fields.agent || '';
+      }
+      
       return data.fields[key] !== undefined ? data.fields[key] : ''; // Access fields from the 'fields' object
     });
+    
+    Logger.log('Row data to be saved: ' + JSON.stringify(rowData));
     
     if (existingRowIndex > 0) {
       sheet.getRange(existingRowIndex, 1, 1, rowData.length).setValues([rowData]);
@@ -208,15 +262,29 @@ function doPost(e) {
     }
     
     Logger.log('Data saved successfully to sheet: ' + sheetName);
-    Logger.log('Row data: ' + JSON.stringify(rowData));
 
-    return ContentService.createTextOutput(JSON.stringify({ 
+    const successResponse = { 
       status: 'success', 
       message: existingRowIndex > 0 ? 'Data updated successfully' : 'Data saved successfully' 
-    })).setMimeType(ContentService.MimeType.JSON);
+    };
+    
+    if (callback) {
+      return ContentService.createTextOutput(callback + '(' + JSON.stringify(successResponse) + ')')
+        .setMimeType(ContentService.MimeType.JAVASCRIPT);
+    }
+    
+    return ContentService.createTextOutput(JSON.stringify(successResponse))
+      .setMimeType(ContentService.MimeType.JSON);
   } catch (error) {
     Logger.log('Error in doPost: %s', error.toString());
-    return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: 'Server error: ' + error.toString() }))
+    const errorResponse = { status: 'error', message: 'Server error: ' + error.toString() };
+    
+    if (e.parameter.callback) {
+      return ContentService.createTextOutput(e.parameter.callback + '(' + JSON.stringify(errorResponse) + ')')
+        .setMimeType(ContentService.MimeType.JAVASCRIPT);
+    }
+    
+    return ContentService.createTextOutput(JSON.stringify(errorResponse))
       .setMimeType(ContentService.MimeType.JSON);
   }
 }
@@ -237,20 +305,42 @@ function verifyLogin(agentName, password) {
   const avatarUrlColIndex = headers.indexOf('avatarUrl');
   const roleColIndex = headers.indexOf('role');
 
-  if (agentNameColIndex === -1 || passwordColIndex === -1 || roleColIndex === -1) {
-    return { error: 'Required columns (agentName, password, role) not found in Agents sheet.' };
+  if (agentNameColIndex === -1 || passwordColIndex === -1) {
+    return { error: 'Required columns (agentName, password) not found in Agents sheet.' };
   }
+
+  Logger.log('Verifying login for agent: ' + agentName);
+  Logger.log('Headers: ' + JSON.stringify(headers));
+  Logger.log('agentNameColIndex: ' + agentNameColIndex + ', passwordColIndex: ' + passwordColIndex + ', roleColIndex: ' + roleColIndex);
 
   for (let i = 1; i < values.length; i++) {
     const row = values[i];
+    Logger.log('Checking row ' + i + ': ' + JSON.stringify(row));
+    
     if (row[agentNameColIndex] == agentName && row[passwordColIndex] == password) {
+      let role = 'user'; // Default role
+      
+      if (roleColIndex !== -1 && row[roleColIndex]) {
+        role = String(row[roleColIndex]).toLowerCase(); // Convert to string and lowercase
+      }
+      
+      Logger.log('Login successful for agent: ' + agentName + ' with role: ' + role);
+      
+      // For admin user, explicitly set role to 'admin'
+      if (agentName === 'admin' || role === 'admin') {
+        role = 'admin';
+        Logger.log('Setting explicit admin role for user: ' + agentName);
+      }
+      
       return { 
         agentName: agentName, 
-        role: row[roleColIndex] || 'user', // Default to 'user' if role is empty
-        avatarUrl: row[avatarUrlColIndex] || '' 
+        role: role,
+        avatarUrl: avatarUrlColIndex !== -1 ? row[avatarUrlColIndex] || '' : '' 
       };
     }
   }
+  
+  Logger.log('Login failed for agent: ' + agentName);
   return { error: 'Invalid agent name or password.' };
 }
 
@@ -311,28 +401,37 @@ function getFormData(e) {
     }
 
     const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+    Logger.log(`Headers found: ${headers.join(', ')}`);
     
     // Determine if it's a multi-entry form (where we need all entries for a given agent)
     const isMultiEntryForm = ['Dreams List', 'Expenses to Income Report', 'Potential Business Partners', 'Potential Field Trainings'].includes(sheetName);
+    Logger.log(`Is multi-entry form: ${isMultiEntryForm}`);
 
     let formData = {};
-
-    if (sheet.getLastRow() > 1) { // Check if there's any data beyond headers
-      const dataRange = sheet.getRange(2, 1, sheet.getLastRow() - 1, lastColumn);
-      const values = dataRange.getValues();
-      
-      // Find the agent column index for filtering
-      const agentColumnIndex = headers.findIndex(header => 
-        header.toLowerCase() === 'agent' || 
-        header.toLowerCase() === 'agentname');
-      
-      // Find the record_id column index
-      const recordIdColumnIndex = headers.findIndex(header => 
-        header.toLowerCase() === 'record id' || 
-        header.toLowerCase() === 'record_id');
-      
-      Logger.log(`Getting data for ${sheetName}, agent: ${sessionId}, isMultiEntry: ${isMultiEntryForm}`);
-      Logger.log(`Agent column index: ${agentColumnIndex}, Record ID column index: ${recordIdColumnIndex}`);
+    
+    // Find the column indices for 'Agent' and 'Record ID'
+    const agentColumnIndex = headers.findIndex(header => 
+      header.toLowerCase() === 'agent' || 
+      header.toLowerCase() === 'agentname');
+    
+    const recordIdColumnIndex = headers.findIndex(header => 
+      header.toLowerCase() === 'record id' || 
+      header.toLowerCase() === 'record_id');
+    
+    Logger.log(`Agent column index: ${agentColumnIndex}, Record ID column index: ${recordIdColumnIndex}`);
+    
+    // Special debug for System Progressions
+    if (sheetName === 'System Progressions') {
+      Logger.log('Special debug for System Progressions');
+      Logger.log(`Looking for data for agent: ${sessionId}`);
+      Logger.log(`Headers: ${headers.join(', ')}`);
+    }
+    
+    // Get all data from the sheet
+    const lastRow = sheet.getLastRow();
+    if (lastRow > 1) {
+      const values = sheet.getRange(2, 1, lastRow - 1, lastColumn).getValues();
+      Logger.log(`Found ${values.length} data rows`);
       
       if (isMultiEntryForm) {
         // Multi-entry form: return all entries for this agent
@@ -359,6 +458,8 @@ function getFormData(e) {
         // For single-entry forms, we now use a consistent record_id format: agentName_formId
         const formId = getFormIdFromSheetName(sheetName);
         const expectedRecordIdPrefix = `${sessionId}_${formId}`;
+        
+        Logger.log(`Looking for record with ID prefix: ${expectedRecordIdPrefix}`);
         
         let found = false;
         for (let i = 0; i < values.length; i++) {
@@ -392,6 +493,8 @@ function getFormData(e) {
         
         if (!found) {
           Logger.log(`No matching record found for agent ${sessionId} in ${sheetName}`);
+        } else {
+          Logger.log(`Returning data: ${JSON.stringify(formData)}`);
         }
         
         return jsonpResponse(formData, callback);
@@ -401,8 +504,8 @@ function getFormData(e) {
       return jsonpResponse(isMultiEntryForm ? { entries: [] } : {}, callback);
     }
   } catch (error) {
-    Logger.log('Error in getFormData: %s', error.toString());
-    return jsonpResponse({ status: 'error', message: 'Server error: ' + error.toString() }, callback);
+    Logger.log(`Error in getFormData: ${error.toString()}`);
+    return jsonpResponse({ status: 'error', message: 'Server error: ' + error.toString() }, e.parameter.callback);
   }
 }
 
@@ -668,6 +771,8 @@ function handleLogin(e) {
     const password = e.parameter.password;
     const callback = e.parameter.callback;
     
+    Logger.log('handleLogin called for agent: ' + agentName);
+    
     if (!agentName || !password) {
       return ContentService.createTextOutput(
         callback + '(' + JSON.stringify({ error: 'Agent name and password are required.' }) + ');'
@@ -675,6 +780,8 @@ function handleLogin(e) {
     }
     
     const result = verifyLogin(agentName, password);
+    Logger.log('Login result: ' + JSON.stringify(result));
+    
     return ContentService.createTextOutput(
       callback + '(' + JSON.stringify(result) + ');'
     ).setMimeType(ContentService.MimeType.JAVASCRIPT);
@@ -683,5 +790,234 @@ function handleLogin(e) {
     return ContentService.createTextOutput(
       e.parameter.callback + '(' + JSON.stringify({ error: 'Server error: ' + error.toString() }) + ');'
     ).setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+}
+
+// New function to handle saving data via GET request (for JSONP)
+function handleSaveDataGet(e) {
+  try {
+    const callback = e.parameter.callback;
+    const sheetName = e.parameter.sheetName;
+    const recordId = e.parameter.record_id;
+    const agentName = e.parameter.agentName || e.parameter.agent;
+    let fields = {};
+    
+    // Parse the data parameter if it exists
+    if (e.parameter.data) {
+      try {
+        fields = JSON.parse(e.parameter.data);
+      } catch (parseError) {
+        Logger.log('Error parsing data parameter: ' + parseError.toString());
+        // Continue with empty fields object
+      }
+    }
+    
+    // Add all other parameters as fields
+    for (const key in e.parameter) {
+      if (['callback', 'action', 'sheetName', 'record_id'].indexOf(key) === -1) {
+        fields[key] = e.parameter[key];
+      }
+    }
+    
+    Logger.log('handleSaveDataGet called with sheetName=' + sheetName + ', recordId=' + recordId + ', agentName=' + agentName);
+    Logger.log('Fields: ' + JSON.stringify(fields));
+    
+    if (!sheetName) {
+      return jsonpResponse({ status: 'error', message: 'Missing sheetName' }, callback);
+    }
+    
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(sheetName);
+    if (!sheet) {
+      return jsonpResponse({ status: 'error', message: 'Sheet not found: ' + sheetName }, callback);
+    }
+    
+    const lastColumn = sheet.getLastColumn();
+    if (lastColumn === 0) {
+      return jsonpResponse({ status: 'error', message: 'No headers found' }, callback);
+    }
+    
+    const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+    
+    // Find the record ID column
+    const idColumnIndex = headers.findIndex(header => 
+      header.toLowerCase() === 'record id' || 
+      header.toLowerCase() === 'record_id');
+    
+    if (idColumnIndex < 0) {
+      // If no Record ID column exists, add it
+      sheet.getRange(1, lastColumn + 1).setValue('Record ID');
+      headers.push('Record ID');
+    }
+    
+    // Find existing row if record_id is provided
+    let existingRowIndex = -1;
+    if (recordId) {
+      const recordIdColIndex = headers.findIndex(header => 
+        header.toLowerCase() === 'record id' || 
+        header.toLowerCase() === 'record_id');
+      if (recordIdColIndex >= 0) {
+        const dataRange = sheet.getLastRow() > 1 ? sheet.getRange(2, recordIdColIndex + 1, sheet.getLastRow() - 1, 1) : null;
+        if (dataRange) {
+          const values = dataRange.getValues();
+          for (let i = 0; i < values.length; i++) {
+            if (values[i][0] == recordId) {
+              existingRowIndex = i + 2; // +2 because we start at row 2 and i is 0-based
+              break;
+            }
+          }
+        }
+      }
+    }
+    
+    // Special handling for System Progressions
+    if (sheetName === 'System Progressions') {
+      Logger.log('Special handling for System Progressions');
+      
+      // Ensure agentName is included
+      if (agentName) {
+        Logger.log('agentName found in parameters: ' + agentName);
+        fields['agentName'] = agentName;
+        fields['agent'] = agentName;
+      }
+    }
+    
+    // Prepare row data
+    const rowData = headers.map(header => {
+      const key = header.toLowerCase().replace(/ /g, '_');
+      
+      if ((header === 'Record ID' || header.toLowerCase() === 'record_id')) {
+        return recordId || '';
+      }
+      
+      // Special case for agentName in System Progressions
+      if (sheetName === 'System Progressions' && header === 'agentName') {
+        return agentName || fields['agentName'] || fields['agent'] || '';
+      }
+      
+      return fields[key] !== undefined ? fields[key] : '';
+    });
+    
+    Logger.log('Row data to be saved: ' + JSON.stringify(rowData));
+    
+    if (existingRowIndex > 0) {
+      sheet.getRange(existingRowIndex, 1, 1, rowData.length).setValues([rowData]);
+      Logger.log('Updated existing row at index: ' + existingRowIndex);
+    } else {
+      sheet.appendRow(rowData);
+      Logger.log('Appended new row with data: ' + JSON.stringify(rowData));
+    }
+    
+    Logger.log('Data saved successfully to sheet: ' + sheetName);
+    
+    return jsonpResponse({ 
+      status: 'success', 
+      message: existingRowIndex > 0 ? 'Data updated successfully' : 'Data saved successfully' 
+    }, callback);
+  } catch (error) {
+    Logger.log('Error in handleSaveDataGet: %s', error.toString());
+    return jsonpResponse({ status: 'error', message: 'Server error: ' + error.toString() }, e.parameter.callback);
+  }
+}
+
+// Function to check and fix admin user in Agents sheet
+function checkAndFixAdminUser() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const agentSheet = ss.getSheetByName('Agents');
+    if (!agentSheet) {
+      Logger.log('Agents sheet not found');
+      return { status: 'error', message: 'Agents sheet not found' };
+    }
+    
+    const dataRange = agentSheet.getDataRange();
+    const values = dataRange.getValues();
+    const headers = values[0];
+    const agentNameColIndex = headers.indexOf('agentName');
+    const roleColIndex = headers.indexOf('role');
+    
+    if (agentNameColIndex === -1 || roleColIndex === -1) {
+      Logger.log('Required columns not found in Agents sheet');
+      return { status: 'error', message: 'Required columns not found in Agents sheet' };
+    }
+    
+    let adminFound = false;
+    let adminRowIndex = -1;
+    
+    // Check if admin user exists and has correct role
+    for (let i = 1; i < values.length; i++) {
+      const row = values[i];
+      if (row[agentNameColIndex] === 'admin') {
+        adminFound = true;
+        adminRowIndex = i + 1; // +1 because sheet rows are 1-indexed
+        
+        // Check if admin role is correct
+        if (row[roleColIndex] !== 'admin') {
+          // Fix admin role
+          agentSheet.getRange(adminRowIndex, roleColIndex + 1).setValue('admin');
+          Logger.log('Fixed admin role for admin user');
+        }
+        
+        break;
+      }
+    }
+    
+    // If admin user doesn't exist, create it
+    if (!adminFound) {
+      const newRow = Array(headers.length).fill('');
+      newRow[agentNameColIndex] = 'admin';
+      newRow[roleColIndex] = 'admin';
+      newRow[headers.indexOf('password')] = 'admin123';
+      newRow[headers.indexOf('lastUpdated')] = new Date().toISOString();
+      
+      agentSheet.appendRow(newRow);
+      Logger.log('Created admin user');
+    }
+    
+    return { status: 'success', message: 'Admin user checked and fixed if needed' };
+  } catch (error) {
+    Logger.log('Error in checkAndFixAdminUser: %s', error.toString());
+    return { status: 'error', message: 'Error checking admin user: ' + error.toString() };
+  }
+}
+
+// Function to get all users (for admin)
+function getUsers(e) {
+  try {
+    const callback = e.parameter.callback;
+    
+    // Check if Agents sheet exists
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const agentSheet = ss.getSheetByName('Agents');
+    if (!agentSheet) {
+      return jsonpResponse({ status: 'error', message: 'Agents sheet not found' }, callback);
+    }
+    
+    const lastRow = agentSheet.getLastRow();
+    const lastColumn = agentSheet.getLastColumn();
+    
+    if (lastRow <= 1) { // Only headers, no data
+      return jsonpResponse({ status: 'success', users: [] }, callback);
+    }
+    
+    const headers = agentSheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+    const data = agentSheet.getRange(2, 1, lastRow - 1, lastColumn).getValues();
+    
+    const users = data.map(row => {
+      const user = {};
+      headers.forEach((header, index) => {
+        // Skip password field for security
+        if (header !== 'password') {
+          user[header] = row[index];
+        }
+      });
+      return user;
+    });
+    
+    Logger.log(`Retrieved ${users.length} users`);
+    return jsonpResponse({ status: 'success', users: users }, callback);
+  } catch (error) {
+    Logger.log('Error in getUsers: %s', error.toString());
+    return jsonpResponse({ status: 'error', message: 'Error getting users: ' + error.toString() }, callback);
   }
 }
