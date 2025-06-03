@@ -449,50 +449,40 @@
 
     /* Modal styles */
     .modal {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0, 0, 0, 0.5);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 2000;
-        opacity: 0;
-        visibility: hidden;
-        transition: opacity 0.3s ease;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 2000;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s ease;
     }
     .modal.show {
-        opacity: 1;
-        visibility: visible;
+      opacity: 1;
+      visibility: visible;
     }
     .modal-content {
-        background-color: white;
-        padding: 2rem;
-        border-radius: 0.5rem;
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-        width: 90%;
-        max-width: 600px;
-        position: relative;
-        transform: translateY(-20px);
-        transition: transform 0.3s ease;
-    }
-    .modal.show .modal-content {
-        transform: translateY(0);
+      background-color: white;
+      padding: 2rem;
+      border-radius: 0.5rem;
+      width: 90%;
+      max-width: 500px;
+      position: relative;
     }
     .modal-close-button {
-        position: absolute;
-        top: 1rem;
-        right: 1rem;
-        background: none;
-        border: none;
-        font-size: 1.5rem;
-        cursor: pointer;
-        color: #6b7280;
-    }
-    .modal-close-button:hover {
-        color: #1f2937;
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      font-size: 1.5rem;
+      background: none;
+      border: none;
+      cursor: pointer;
     }
 
     .form-actions {
@@ -564,6 +554,7 @@
         <a href="#" data-page="expenses-to-income-report" class=""><i class="fas fa-money-bill-wave"></i> Expenses Report</a>
         <a href="#" data-page="potential-business-partners" class=""><i class="fas fa-handshake"></i> Business Partners</a>
         <a href="#" data-page="potential-field-trainings" class=""><i class="fas fa-chalkboard-teacher"></i> Field Trainings</a>
+        <a href="#" data-page="career-progression" class=""><i class="fas fa-chart-line"></i> Career Progression</a>
         <!-- Add User Management link for admin only -->
         <a href="#" data-page="user-management" class="admin-only"><i class="fas fa-users-cog"></i> User Management</a>
       </nav>
@@ -885,6 +876,376 @@
           </div>
         </div>
 
+        <div id="career-progression-form" class="page-content hidden">
+          <div class="form-container">
+            <h2 class="page-title">Career Progression Checklist</h2>
+            <p class="page-description">Track your career progression steps and achievements.</p>
+            <form id="careerProgressionForm" class="form-grid">
+              <!-- Phase 1: Onboarding -->
+              <div class="form-section">
+                <h3 class="section-title">Phase 1: Initial Onboarding</h3>
+                <div class="form-group">
+                  <label for="step1Onboarding">Step 1 Onboarding:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="step1Onboarding" name="step1_onboarding" value="true">
+                    <span class="checkbox-label">Completed</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="licensingClass">Licensing Class:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="licensingClass" name="licensing_class" value="true">
+                    <span class="checkbox-label">Completed</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="personalFinancialReview">Personal Financial Review:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="personalFinancialReview" name="personal_financial_review" value="true">
+                    <span class="checkbox-label">Completed</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="moneyWealthLifeInsurance">Money, Wealth & Life Insurance:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="moneyWealthLifeInsurance" name="money_wealth_life_insurance" value="true">
+                    <span class="checkbox-label">Completed</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Phase 2: Business Partners -->
+              <div class="form-section">
+                <h3 class="section-title">Phase 2: Business Partners</h3>
+                <div class="form-group">
+                  <label for="step2Onboarding">Step 2 Onboarding:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="step2Onboarding" name="step2_onboarding" value="true">
+                    <span class="checkbox-label">Completed</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="businessPartnerList">Business Partner List:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="businessPartnerList" name="business_partner_list" value="true">
+                    <span class="checkbox-label">Completed</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="businessPartner1">Business Partner 1:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="businessPartner1" name="business_partner_1" value="true">
+                    <span class="checkbox-label">Recruited</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="businessPartner2">Business Partner 2:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="businessPartner2" name="business_partner_2" value="true">
+                    <span class="checkbox-label">Recruited</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="businessPartner3">Business Partner 3:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="businessPartner3" name="business_partner_3" value="true">
+                    <span class="checkbox-label">Recruited</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Phase 3: Licensing -->
+              <div class="form-section">
+                <h3 class="section-title">Phase 3: Licensing</h3>
+                <div class="form-group">
+                  <label for="passLifeLicenseTest">Pass Life License Test:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="passLifeLicenseTest" name="pass_life_license_test" value="true">
+                    <span class="checkbox-label">Completed</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="fingerprintsApplyLicense">Fingerprints & Apply for License:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="fingerprintsApplyLicense" name="fingerprints_apply_license" value="true">
+                    <span class="checkbox-label">Completed</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="introToEmd">Intro to EMD:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="introToEmd" name="intro_to_emd" value="true">
+                    <span class="checkbox-label">Completed</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Phase 4: Field Training -->
+              <div class="form-section">
+                <h3 class="section-title">Phase 4: Field Training</h3>
+                <div class="form-group">
+                  <label for="step3Onboarding">Step 3 Onboarding:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="step3Onboarding" name="step3_onboarding" value="true">
+                    <span class="checkbox-label">Completed</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="fieldTrainingList">Field Training List:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="fieldTrainingList" name="field_training_list" value="true">
+                    <span class="checkbox-label">Completed</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="masterEthorScript">Master ETHOR Script:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="masterEthorScript" name="master_ethor_script" value="true">
+                    <span class="checkbox-label">Completed</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="set10FieldTrainings">Set 10 Field Trainings:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="set10FieldTrainings" name="set_10_field_trainings" value="true">
+                    <span class="checkbox-label">Completed</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Field Trainings -->
+              <div class="form-section">
+                <h3 class="section-title">Field Training Appointments</h3>
+                <div class="form-group">
+                  <label for="fieldTraining1">Field Training 1:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="fieldTraining1" name="field_training_1" value="true">
+                    <span class="checkbox-label">Completed</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="fieldTraining2">Field Training 2:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="fieldTraining2" name="field_training_2" value="true">
+                    <span class="checkbox-label">Completed</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="fieldTraining3">Field Training 3:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="fieldTraining3" name="field_training_3" value="true">
+                    <span class="checkbox-label">Completed</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="fieldTraining4">Field Training 4:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="fieldTraining4" name="field_training_4" value="true">
+                    <span class="checkbox-label">Completed</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="fieldTraining5">Field Training 5:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="fieldTraining5" name="field_training_5" value="true">
+                    <span class="checkbox-label">Completed</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="fieldTraining6">Field Training 6:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="fieldTraining6" name="field_training_6" value="true">
+                    <span class="checkbox-label">Completed</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="fieldTraining7">Field Training 7:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="fieldTraining7" name="field_training_7" value="true">
+                    <span class="checkbox-label">Completed</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="fieldTraining8">Field Training 8:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="fieldTraining8" name="field_training_8" value="true">
+                    <span class="checkbox-label">Completed</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="fieldTraining9">Field Training 9:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="fieldTraining9" name="field_training_9" value="true">
+                    <span class="checkbox-label">Completed</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="fieldTraining10">Field Training 10:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="fieldTraining10" name="field_training_10" value="true">
+                    <span class="checkbox-label">Completed</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Promotions and Achievements -->
+              <div class="form-section">
+                <h3 class="section-title">Promotions & Achievements</h3>
+                <div class="form-group">
+                  <label for="unlockAccessToCourses">Unlock Access to Courses:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="unlockAccessToCourses" name="unlock_access_to_courses" value="true">
+                    <span class="checkbox-label">Completed</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="associatePromotion">Associate Promotion:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="associatePromotion" name="associate_promotion" value="true">
+                    <span class="checkbox-label">Achieved</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="seniorAssociatePromotion">Senior Associate Promotion:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="seniorAssociatePromotion" name="senior_associate_promotion" value="true">
+                    <span class="checkbox-label">Achieved</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="marketingDirector">Marketing Director:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="marketingDirector" name="marketing_director" value="true">
+                    <span class="checkbox-label">Achieved</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Licenses and Certifications -->
+              <div class="form-section">
+                <h3 class="section-title">Licenses & Certifications</h3>
+                <div class="form-group">
+                  <label for="netLicense">Net License:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="netLicense" name="net_license" value="true">
+                    <span class="checkbox-label">Obtained</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="license1">License 1:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="license1" name="license_1" value="true">
+                    <span class="checkbox-label">Obtained</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="license2">License 2:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="license2" name="license_2" value="true">
+                    <span class="checkbox-label">Obtained</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="license3">License 3:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="license3" name="license_3" value="true">
+                    <span class="checkbox-label">Obtained</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="license4">License 4:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="license4" name="license_4" value="true">
+                    <span class="checkbox-label">Obtained</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Recognition Levels -->
+              <div class="form-section">
+                <h3 class="section-title">Recognition Levels</h3>
+                <div class="form-group">
+                  <label for="watch10000">Watch $10,000:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="watch10000" name="watch_10000" value="true">
+                    <span class="checkbox-label">Achieved</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="watch20000">Watch $20,000:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="watch20000" name="watch_20000" value="true">
+                    <span class="checkbox-label">Achieved</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="watch30000">Watch $30,000:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="watch30000" name="watch_30000" value="true">
+                    <span class="checkbox-label">Achieved</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="watch40000">Watch $40,000:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="watch40000" name="watch_40000" value="true">
+                    <span class="checkbox-label">Achieved</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="watch50000">Watch $50,000:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="watch50000" name="watch_50000" value="true">
+                    <span class="checkbox-label">Achieved</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="ring60000">Ring $60,000:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="ring60000" name="ring_60000" value="true">
+                    <span class="checkbox-label">Achieved</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="ring70000">Ring $70,000:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="ring70000" name="ring_70000" value="true">
+                    <span class="checkbox-label">Achieved</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="ring80000">Ring $80,000:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="ring80000" name="ring_80000" value="true">
+                    <span class="checkbox-label">Achieved</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="ring90000">Ring $90,000:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="ring90000" name="ring_90000" value="true">
+                    <span class="checkbox-label">Achieved</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="ring100000">Ring $100,000:</label>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="ring100000" name="ring_100000" value="true">
+                    <span class="checkbox-label">Achieved</span>
+                  </div>
+                </div>
+              </div>
+
+              <input type="hidden" id="careerProgressionRecordId" name="record_id">
+              <input type="hidden" id="careerProgressionAgentName" name="agentName">
+              <div class="form-actions col-span-full">
+                <p id="careerProgressionFormSaveStatus" class="text-sm text-gray-500 mr-auto flex items-center"></p>
+                <button type="submit" class="btn btn-primary">Save Progress</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
         <div id="dreams-list-form" class="page-content hidden">
             <div class="form-container">
                 <h2 class="page-title">Dreams List</h2>
@@ -1019,7 +1380,14 @@
         <input type="hidden" id="modalDreamRecordId" name="record_id">
         <div class="form-group">
           <label for="modalTimeFrame">Time Frame:</label>
-          <input type="text" id="modalTimeFrame" name="time_frame">
+          <select id="modalTimeFrame" name="time_frame">
+            <option value="3 Months">3 Months</option>
+            <option value="6 Months">6 Months</option>
+            <option value="1 Year">1 Year</option>
+            <option value="2 Years">2 Years</option>
+            <option value="3 Years">3 Years</option>
+            <option value="4 Years +">4 Years +</option>
+          </select>
         </div>
         <div class="form-group">
           <label for="modalDream">Dream:</label>

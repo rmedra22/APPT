@@ -5,6 +5,9 @@ const AUTO_SAVE_DELAY = 2000; // 2 seconds
 let autoSaveTimeout = null;
 let autoSaveEnabled = true; // New variable to control auto-save feature
 
+// Initialize data arrays for multi-entry forms
+let dreamsData = [];
+
 // Add role-based access control
 function setupRoleBasedAccess() {
   if (!currentAgent || !currentAgent.role) {
@@ -71,7 +74,7 @@ function toggleAutoSave() {
 }
 
 // !!! IMPORTANT: REPLACE 'YOUR_DEPLOYMENT_ID_HERE' with your actual Google Apps Script Web App Deployment ID
-const scriptId = 'AKfycbwo5wcKKrs-TN2Ck8B0O6pEUMiW05pkUPkInoZfPRhm5ioTw84MJXLcF7YXZLY0YFyv0g'; // Replace with your actual script ID
+const scriptId = 'AKfycbwP9QCe8hVkAqlVvuU7WU3WJMhM6f8AlfEShSWLoOQWFLhYnXEbiiJRLwG9K6FmAYi5cQ'; // Replace with your actual script ID
 
 const formSheetMap = {
   'personalForm': 'Personal Details',
@@ -80,7 +83,8 @@ const formSheetMap = {
   'dreamsForm': 'Dreams List',
   'expensesForm': 'Expenses to Income Report',
   'partnersForm': 'Potential Business Partners',
-  'clientsForm': 'Potential Field Trainings'
+  'clientsForm': 'Potential Field Trainings',
+  'careerProgressionForm': 'Career Progression'
 };
 
 // UI Helper Functions
@@ -94,26 +98,14 @@ function showToast(message, type = 'info') {
   }, 3000);
 }
 
-// Remove these functions entirely
-// function showLoading() {
-//   document.getElementById('loadingOverlay').classList.add('show');
-// }
-
-// function hideLoading() {
-//   document.getElementById('loadingOverlay').classList.remove('show');
-// }
-
 function updateSaveStatus(message, statusElementId) {
   const statusEl = document.getElementById(statusElementId);
   if (!statusEl) return;
   statusEl.textContent = message;
   statusEl.style.opacity = '1';
-  // Optional: Add a class for styling (e.g., text-green-500, text-red-500)
-  // statusEl.classList.add('text-green-500'); // Example
   clearTimeout(autoSaveTimeout);
   autoSaveTimeout = setTimeout(() => {
     statusEl.style.opacity = '0';
-    // statusEl.classList.remove('text-green-500'); // Example
   }, 3000);
 }
 
@@ -197,7 +189,8 @@ function navigateTo(pageId) {
     'expenses-to-income-report': 'expenses-to-income-report-form',
     'potential-business-partners': 'potential-business-partners-form',
     'potential-field-trainings': 'potential-field-trainings-form',
-    'user-management': 'user-management-form'
+    'user-management': 'user-management-form',
+    'career-progression': 'career-progression-form'
   };
   
   // Check if we need to map the pageId
@@ -236,29 +229,30 @@ function navigateTo(pageId) {
     setupProgressionsForm();
   }
   
-  // Load data for licensing checklist when navigating to it
   if (pageId === 'licensing-checklist-form') {
     console.log('Loading licensing checklist data for newly navigated page');
     setupLicensingForm();
   }
   
-  // If navigating to personal details, load the current user's personal details
+  if (pageId === 'career-progression-form') {
+    console.log('Loading career progression data for newly navigated page');
+    setupCareerProgressionForm();
+  }
+  
   if (pageId === 'personal-details-form') {
     console.log('Loading personal details for current user');
     setTimeout(() => {
-      loadPersonalDetails(); // Load the current user's personal details
+      loadPersonalDetails();
     }, 100);
     
-    // If user is admin, also load all personal details
     if (currentAgent && currentAgent.role === 'admin') {
       console.log('Admin navigated to personal details, loading all personal details');
       setTimeout(() => {
-        loadAllPersonalDetails(); // Delay slightly to ensure page is ready
+        loadAllPersonalDetails();
       }, 200);
     }
   }
   
-  // If navigating to user management and user is admin, load users list
   if (pageId === 'user-management-form' && currentAgent && currentAgent.role === 'admin') {
     loadUsers();
   }
@@ -267,7 +261,6 @@ function navigateTo(pageId) {
   const sidebarLinks = document.querySelectorAll('.sidebar-menu a');
   sidebarLinks.forEach(link => link.classList.remove('active'));
   
-  // Find and activate the corresponding sidebar link
   const sidebarPageIdMap = {
     'dashboardPageContent': 'dashboard',
     'personal-details-form': 'personal-details',
@@ -277,7 +270,8 @@ function navigateTo(pageId) {
     'expenses-to-income-report-form': 'expenses-to-income-report',
     'potential-business-partners-form': 'potential-business-partners',
     'potential-field-trainings-form': 'potential-field-trainings',
-    'user-management-form': 'user-management'
+    'user-management-form': 'user-management',
+    'career-progression-form': 'career-progression'
   };
   
   const sidebarPageId = sidebarPageIdMap[pageId];
@@ -289,13 +283,12 @@ function navigateTo(pageId) {
     }
   }
   
-  currentPage = pageId; // Update current page global variable
+  currentPage = pageId;
   console.log(`Successfully navigated to: ${pageId}`);
 }
 
 // --- Form Data Handling ---
 
-// Function to save progressions form
 function saveProgressionsForm() {
   const form = document.getElementById('progressionsForm');
   if (!form) {
@@ -309,17 +302,13 @@ function saveProgressionsForm() {
   }
   
   const saveStatusElementId = 'progressionsFormSaveStatus';
-  
-  // Show immediate feedback
   showToast('Saving progressions...', 'info');
   updateSaveStatus('Saving...', saveStatusElementId);
   
-  // Get all form data
   const formData = new FormData(form);
   const recordIdInput = form.querySelector('input[name="record_id"]');
   let recordId = recordIdInput ? recordIdInput.value : '';
   
-  // If no record_id, create one
   if (!recordId) {
     recordId = `${currentAgent.agentName}_progressionsForm`;
     if (recordIdInput) {
@@ -327,27 +316,18 @@ function saveProgressionsForm() {
     }
   }
   
-  // Convert FormData to a regular object
   const fields = {};
   for (let [key, value] of formData.entries()) {
     fields[key] = value;
   }
   
-  // For checkboxes that aren't checked, they won't be in formData
-  // So we need to add them with a value of 'false'
   const checkboxes = form.querySelectorAll('input[type="checkbox"]');
   checkboxes.forEach(checkbox => {
-    if (!formData.has(checkbox.name)) {
-      fields[checkbox.name] = false;
-    } else {
-      // Ensure checked checkboxes have value 'true'
-      fields[checkbox.name] = true;
-    }
+    fields[checkbox.name] = formData.has(checkbox.name) ? true : false;
   });
   
-  // CRITICAL: Add agent name to the data - IMPORTANT: Use 'agentName' to match the column name in the sheet
   fields['agentName'] = currentAgent.agentName;
-  fields['agent'] = currentAgent.agentName; // Also include 'agent' for compatibility
+  fields['agent'] = currentAgent.agentName;
   
   console.log('Agent name being saved:', currentAgent.agentName);
   console.log('Fields object:', fields);
@@ -361,24 +341,20 @@ function saveProgressionsForm() {
   
   console.log('Saving progressions with payload:', payload);
   
-  // Create a unique callback name to avoid conflicts
   const callbackName = 'handleSaveProgressionsResponse_' + new Date().getTime();
   window[callbackName] = function(response) {
     console.log('Save progressions response:', response);
     showToast('Progressions saved successfully!', 'success');
     updateSaveStatus('Saved!', saveStatusElementId);
     
-    // Reload the data after a short delay to ensure it's updated
     setTimeout(() => {
       loadProgressionsData();
     }, 1000);
   };
   
-  // Use JSONP approach with script tag
   const script = document.createElement('script');
   script.src = `https://script.google.com/macros/s/${scriptId}/exec?callback=${callbackName}&action=saveData&sheetName=System%20Progressions&record_id=${encodeURIComponent(recordId)}&agentName=${encodeURIComponent(currentAgent.agentName)}&agent=${encodeURIComponent(currentAgent.agentName)}&data=${encodeURIComponent(JSON.stringify(fields))}`;
   
-  // Add error handling
   script.onerror = function() {
     console.error('Failed to save progressions - script loading error');
     showToast('Error saving progressions. Please try again.', 'error');
@@ -390,10 +366,8 @@ function saveProgressionsForm() {
 
 // Add a hidden input field for agentName to the progressions form
 document.addEventListener('DOMContentLoaded', function() {
-  // Add event listener for progressions form
   const progressionsForm = document.getElementById('progressionsForm');
   if (progressionsForm) {
-    // Add a hidden input for agentName if it doesn't exist
     if (!progressionsForm.querySelector('input[name="agentName"]')) {
       const agentNameInput = document.createElement('input');
       agentNameInput.type = 'hidden';
@@ -402,7 +376,6 @@ document.addEventListener('DOMContentLoaded', function() {
       progressionsForm.appendChild(agentNameInput);
     }
     
-    // Add a hidden input for record_id if it doesn't exist
     if (!progressionsForm.querySelector('input[name="record_id"]')) {
       const recordIdInput = document.createElement('input');
       recordIdInput.type = 'hidden';
@@ -413,19 +386,15 @@ document.addEventListener('DOMContentLoaded', function() {
     
     progressionsForm.addEventListener('submit', function(event) {
       event.preventDefault();
-      
-      // Update the hidden agentName field before saving
       const agentNameInput = progressionsForm.querySelector('input[name="agentName"]');
       if (agentNameInput && currentAgent && currentAgent.agentName) {
         agentNameInput.value = currentAgent.agentName;
         console.log('Set agentName input value to:', agentNameInput.value);
       }
-      
       saveProgressionsForm();
     });
   }
   
-  // Add refresh button for progressions form
   const progressionsPage = document.getElementById('system-progressions-form');
   if (progressionsPage) {
     const refreshButton = document.createElement('button');
@@ -435,8 +404,6 @@ document.addEventListener('DOMContentLoaded', function() {
     refreshButton.onclick = function() {
       loadProgressionsData();
     };
-    
-    // Insert after the page description
     const pageDescription = progressionsPage.querySelector('.page-description');
     if (pageDescription && pageDescription.parentNode) {
       pageDescription.parentNode.insertBefore(refreshButton, pageDescription.nextSibling);
@@ -444,7 +411,6 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
-// Improve System Progressions form handling
 function loadProgressionsData() {
   if (!currentAgent || !currentAgent.agentName) {
     console.error('No current agent found');
@@ -454,14 +420,12 @@ function loadProgressionsData() {
   
   console.log('Loading system progressions for', currentAgent.agentName);
   
-  // Show loading status
   const statusElement = document.getElementById('progressionsFormSaveStatus');
   if (statusElement) {
     statusElement.textContent = 'Loading...';
     statusElement.style.opacity = '1';
   }
   
-  // Create a unique callback name to avoid conflicts
   const callbackName = 'handleGetProgressionsResponse_' + new Date().getTime();
   window[callbackName] = function(response) {
     console.log('System Progressions Response:', response);
@@ -469,7 +433,6 @@ function loadProgressionsData() {
     console.log('Response keys:', response ? Object.keys(response) : 'null');
     
     if (response && !response.error) {
-      // Populate the form with the data
       populateProgressionsForm(response);
       if (statusElement) {
         statusElement.textContent = 'Data loaded!';
@@ -482,25 +445,21 @@ function loadProgressionsData() {
       if (statusElement) {
         statusElement.textContent = 'Error loading data';
       }
-      
-      // Make sure record_id is set even if no data was found
       const recordIdInput = document.getElementById('progressionsRecordId');
       if (recordIdInput) {
         recordIdInput.value = `${currentAgent.agentName}_progressionsForm`;
       }
     }
     
-    // Clean up the callback
     delete window[callbackName];
   };
   
   const script = document.createElement('script');
-  const timestamp = new Date().getTime(); // Add timestamp to prevent caching
+  const timestamp = new Date().getTime();
   const url = `https://script.google.com/macros/s/${scriptId}/exec?callback=${callbackName}&action=getFormData&sheetName=System%20Progressions&sessionId=${encodeURIComponent(currentAgent.agentName)}&t=${timestamp}`;
   console.log('Loading system progressions with URL:', url);
   script.src = url;
   
-  // Add error handling
   script.onerror = function() {
     console.error('Failed to load system progressions - script loading error');
     if (statusElement) {
@@ -511,7 +470,6 @@ function loadProgressionsData() {
   document.head.appendChild(script);
 }
 
-// Special function to populate progressions form with checkboxes
 function populateProgressionsForm(data) {
   console.log('Populating progressions form with data:', data);
   const form = document.getElementById('progressionsForm');
@@ -520,24 +478,19 @@ function populateProgressionsForm(data) {
     return;
   }
 
-  // Set the record_id
   const recordIdInput = form.querySelector('input[name="record_id"]');
   if (recordIdInput) {
     if (data.record_id) {
       recordIdInput.value = data.record_id;
     } else if (currentAgent) {
-      // If no record_id in data, create one
       recordIdInput.value = `${currentAgent.agentName}_progressionsForm`;
     }
   }
   
-  // Loop through all checkboxes and set their state based on data
   const checkboxes = form.querySelectorAll('input[type="checkbox"]');
   checkboxes.forEach(checkbox => {
     const fieldName = checkbox.name;
-    // Check if the data contains this field
     if (data[fieldName] !== undefined) {
-      // Set checkbox checked state based on value (true/false, Yes/No, or 1/0)
       const value = data[fieldName];
       if (typeof value === 'boolean') {
         checkbox.checked = value;
@@ -552,13 +505,11 @@ function populateProgressionsForm(data) {
       }
       console.log(`Set checkbox ${fieldName} to ${checkbox.checked} based on value: ${value} (${typeof value})`);
     } else {
-      // Default to unchecked if no data
       checkbox.checked = false;
       console.log(`No data for checkbox ${fieldName}, setting to unchecked`);
     }
   });
   
-  // Also handle any text inputs or other field types
   const textInputs = form.querySelectorAll('input[type="text"], textarea, select');
   textInputs.forEach(input => {
     const fieldName = input.name;
@@ -569,16 +520,24 @@ function populateProgressionsForm(data) {
   });
 }
 
-// Update the saveFormData function to use JSONP instead of fetch
 function saveFormData(formId) {
   if (!currentAgent || !currentAgent.agentName) {
     showToast('Login required to save data.', 'error');
     return;
   }
 
-  // For System Progressions, use the dedicated function
   if (formId === 'progressionsForm') {
     saveProgressionsForm();
+    return;
+  }
+
+  if (formId === 'licensingForm') {
+    saveLicensingForm();
+    return;
+  }
+
+  if (formId === 'careerProgressionForm') {
+    saveCareerProgressionData(new Event('submit'));
     return;
   }
 
@@ -591,7 +550,6 @@ function saveFormData(formId) {
     return;
   }
 
-  // Show immediate feedback
   showToast('Saving data...', 'info');
   updateSaveStatus('Saving...', saveStatusElementId);
 
@@ -599,17 +557,13 @@ function saveFormData(formId) {
   const recordIdInput = form.querySelector('input[name="record_id"]');
   let recordId = recordIdInput ? recordIdInput.value : '';
 
-  // For single-entry forms like personalForm and progressionsForm,
-  // we want to use a consistent record_id format for each agent
-  // so we can update the same row instead of creating new ones
-  if (!recordId && ['personalForm', 'progressionsForm'].includes(formId)) {
+  if (!recordId && ['personalForm', 'progressionsForm', 'licensingForm', 'careerProgressionForm'].includes(formId)) {
     recordId = `${currentAgent.agentName}_${formId}`;
     if (recordIdInput) {
-      recordIdInput.value = recordId; // Update the form's hidden input
+      recordIdInput.value = recordId;
     }
   }
 
-  // If still no record_id, generate one
   if (!recordId) {
     recordId = generateRecordId(currentAgent.agentName, formId);
     if (recordIdInput) {
@@ -617,14 +571,11 @@ function saveFormData(formId) {
     }
   }
 
-  // Convert FormData to a regular object
   const fields = {};
   for (let [key, value] of formData.entries()) {
     fields[key] = value;
   }
 
-  // For checkboxes that aren't checked, they won't be in formData
-  // So we need to add them with a value of 'No'
   const checkboxes = form.querySelectorAll('input[type="checkbox"]');
   checkboxes.forEach(checkbox => {
     if (!formData.has(checkbox.name)) {
@@ -632,16 +583,13 @@ function saveFormData(formId) {
     }
   });
 
-  // Add agent name to the data
-  fields['agent'] = currentAgent.agentName; // Ensure agent name is always saved
-  
-  // For System Progressions, also add agentName field to match the column name in the sheet
-  if (sheetName === 'System Progressions') {
+  fields['agent'] = currentAgent.agentName;
+  if (sheetName === 'System Progressions' || sheetName === 'Licensing Checklist' || sheetName === 'Career Progression') {
     fields['agentName'] = currentAgent.agentName;
   }
 
   const payload = {
-    action: 'saveData', // This action is handled by doPost in Code.gs
+    action: 'saveData',
     sheetName: sheetName,
     record_id: recordId,
     fields: fields
@@ -649,33 +597,28 @@ function saveFormData(formId) {
 
   console.log('Saving data with payload:', payload);
 
-  // Use JSONP approach with a form submission
   const jsonpCallback = 'handleSaveFormResponse_' + new Date().getTime();
   window[jsonpCallback] = function(response) {
     console.log('Save form response:', response);
     showToast('Data saved successfully!', 'success');
     updateSaveStatus('Saved!', saveStatusElementId);
     
-    // For single-entry forms, reload the data to ensure UI is updated
     if (!['dreamsForm', 'expensesForm', 'partnersForm', 'clientsForm'].includes(formId)) {
       loadFormData(formId);
     }
   };
   
-  // Create a hidden form and submit it
   const hiddenForm = document.createElement('form');
   hiddenForm.method = 'POST';
   hiddenForm.action = `https://script.google.com/macros/s/${scriptId}/exec?callback=${jsonpCallback}`;
   hiddenForm.target = 'hidden_iframe';
   
-  // Add the data as a hidden input
   const dataInput = document.createElement('input');
   dataInput.type = 'hidden';
   dataInput.name = 'data';
   dataInput.value = JSON.stringify(payload);
   hiddenForm.appendChild(dataInput);
   
-  // Create a hidden iframe to receive the response
   let iframe = document.getElementById('hidden_iframe');
   if (!iframe) {
     iframe = document.createElement('iframe');
@@ -685,17 +628,14 @@ function saveFormData(formId) {
     document.body.appendChild(iframe);
   }
   
-  // Add the form to the document and submit it
   document.body.appendChild(hiddenForm);
   hiddenForm.submit();
   
-  // Clean up
   setTimeout(() => {
     document.body.removeChild(hiddenForm);
   }, 1000);
 }
 
-// Load form data from Google Sheet with improved debugging
 function loadFormData(formId, skipCache = false) {
   if (!currentAgent || !currentAgent.agentName) {
     console.error("Cannot load data: No current agent");
@@ -709,11 +649,9 @@ function loadFormData(formId, skipCache = false) {
     return;
   }
 
-  // Show loading indicator
   updateSaveStatus('Loading...', `${formId}SaveStatus`);
   console.log(`Loading data for ${formId} from sheet ${sheetName} for agent ${currentAgent.agentName}`);
 
-  // Clear any previous callback to avoid conflicts
   if (window[`handleFormDataResponse_${formId}`]) {
     delete window[`handleFormDataResponse_${formId}`];
   }
@@ -729,7 +667,6 @@ function loadFormData(formId, skipCache = false) {
       return;
     }
     
-    // For multi-entry forms, we expect an array of entries
     if (['dreamsForm', 'expensesForm', 'partnersForm', 'clientsForm'].includes(formId)) {
       const entries = response.entries || [];
       console.log(`Received ${entries.length} entries for ${formId}`);
@@ -737,19 +674,17 @@ function loadFormData(formId, skipCache = false) {
       renderMultiEntryTable(formId, entries);
       updateSaveStatus('Data loaded!', `${formId}SaveStatus`);
     } else {
-      // For single-entry forms, populate the form with the data
       console.log(`Received data for ${formId}:`, response);
       populateForm(formId, response);
       updateSaveStatus('Data loaded!', `${formId}SaveStatus`);
     }
   };
   
-  const sessionId = currentAgent.agentName; // Use agent name as session ID
+  const sessionId = currentAgent.agentName;
   const script = document.createElement('script');
-  const timestamp = new Date().getTime(); // Add timestamp to prevent caching
+  const timestamp = new Date().getTime();
   script.src = `https://script.google.com/macros/s/${scriptId}/exec?callback=${callbackName}&action=getFormData&sheetName=${encodeURIComponent(sheetName)}&sessionId=${encodeURIComponent(sessionId)}&t=${timestamp}`;
   
-  // Add error handling for script loading
   script.onerror = function() {
     console.error(`Failed to load data for ${formId} - script loading error`);
     showToast('Error loading data: Network error', 'error');
@@ -760,7 +695,6 @@ function loadFormData(formId, skipCache = false) {
   console.log(`Sent request to load data for ${formId}: ${script.src}`);
 }
 
-// Improve form data handling to prevent data loss
 function populateForm(formId, data) {
   console.log(`Populating form ${formId} with data:`, data);
   const form = document.getElementById(formId);
@@ -769,27 +703,22 @@ function populateForm(formId, data) {
     return;
   }
 
-  // Set the record_id if it exists in the data
   const recordIdInput = form.querySelector('input[name="record_id"]');
   if (recordIdInput) {
     if (data.record_id) {
       recordIdInput.value = data.record_id;
       console.log(`Set record_id to ${data.record_id}`);
     } else if (currentAgent) {
-      // If no record_id in data, create one
       const newRecordId = `${currentAgent.agentName}_${formId}`;
       recordIdInput.value = newRecordId;
       console.log(`Created new record_id: ${newRecordId}`);
     }
   }
 
-  // Loop through all form elements and set their values
   const inputs = form.querySelectorAll('input, select, textarea');
   inputs.forEach(input => {
-    // Skip the record_id field as we've already handled it
     if (input.name === 'record_id') return;
     
-    // Get the corresponding data field (convert to lowercase and replace spaces with underscores)
     const fieldName = input.name.toLowerCase().replace(/ /g, '_');
     const dataField = data[fieldName] || data[input.name];
     
@@ -797,13 +726,10 @@ function populateForm(formId, data) {
     
     if (dataField !== undefined && dataField !== null) {
       if (input.type === 'checkbox') {
-        // For checkboxes, set the checked property based on the value
         input.checked = dataField === true || dataField === 'Yes' || dataField === 'yes' || dataField === 'true';
       } else if (input.type === 'radio') {
-        // For radio buttons, check if the value matches
         input.checked = input.value === dataField.toString();
       } else if (input.type === 'date' && dataField) {
-        // For date inputs, ensure the value is in YYYY-MM-DD format
         try {
           const date = new Date(dataField);
           if (!isNaN(date.getTime())) {
@@ -817,11 +743,9 @@ function populateForm(formId, data) {
           input.value = dataField;
         }
       } else {
-        // For all other input types, just set the value
         input.value = dataField;
       }
     } else {
-      // Clear the field if no data is available
       if (input.type === 'checkbox' || input.type === 'radio') {
         input.checked = false;
       } else {
@@ -837,42 +761,38 @@ function clearForm(formId) {
   const form = document.getElementById(formId);
   if (!form) return;
 
-  form.reset(); // Resets all form fields to their initial state
+  form.reset();
 
-  // Clear hidden record_id
   const recordIdInput = form.querySelector('input[name="record_id"]');
   if (recordIdInput) {
     recordIdInput.value = '';
   }
 
-  // Specific handling for currency inputs if they need initial formatting
   if (formId === 'expensesForm') {
     const amountInput = form.querySelector('[name="amount"]');
     if (amountInput) {
-      amountInput.value = ''; // Ensure it's truly empty, not '₱0.00'
-      setupCurrencyInput(amountInput); // Re-apply formatting logic
+      amountInput.value = '';
+      setupCurrencyInput(amountInput);
     }
   }
 }
 
-
-// --- Multi-Entry Form Rendering and Editing ---
-
 function renderMultiEntryTable(formId, entries) {
-  const tableBody = document.querySelector(`#${formId.replace('Form', 'sTable')} tbody`);
+  // The issue is here - we need to fix the selector
+  const tableId = formId.replace('Form', 'Table');
+  const tableBody = document.querySelector(`#${tableId} tbody`);
   if (!tableBody) {
-    console.error(`Table body for ${formId} not found`);
+    console.error(`Table body for ${formId} not found. Looking for #${tableId} tbody`);
     return;
   }
 
   console.log(`Rendering table for ${formId} with ${entries.length} entries`);
-  tableBody.innerHTML = ''; // Clear existing rows
+  tableBody.innerHTML = '';
 
   if (entries.length === 0) {
-    // Add a message row if no entries
     const row = tableBody.insertRow();
     const cell = row.insertCell();
-    cell.colSpan = 6; // Span all columns
+    cell.colSpan = 6;
     cell.textContent = 'No entries found. Add a new entry to get started.';
     cell.style.textAlign = 'center';
     cell.style.padding = '20px';
@@ -881,15 +801,14 @@ function renderMultiEntryTable(formId, entries) {
 
   entries.forEach((entry, index) => {
     const row = tableBody.insertRow();
-    row.dataset.recordId = entry.record_id; // Store record_id on the row
-    row.dataset.index = index; // Store index for editing
+    row.dataset.recordId = entry.record_id;
+    row.dataset.index = index;
 
     if (formId === 'dreamsForm') {
       row.insertCell().textContent = entry.time_frame || '';
       row.insertCell().textContent = entry.dream || '';
       row.insertCell().textContent = entry.why || '';
       
-      // Add actions cell
       const actionsCell = row.insertCell();
       const editBtn = document.createElement('button');
       editBtn.className = 'btn-edit';
@@ -910,7 +829,6 @@ function renderMultiEntryTable(formId, entries) {
       row.insertCell().textContent = entry.date ? new Date(entry.date).toLocaleDateString() : '';
       row.insertCell().textContent = entry.description || '';
       
-      // Add actions cell
       const actionsCell = row.insertCell();
       const editBtn = document.createElement('button');
       editBtn.className = 'btn-edit';
@@ -928,30 +846,22 @@ function renderMultiEntryTable(formId, entries) {
   });
 }
 
-// Debug function to check all page elements
 function debugPageElements() {
   console.log('--- DEBUG: Page Elements ---');
-  
-  // Check all page-content elements
   console.log('Page content elements:');
   document.querySelectorAll('.page-content').forEach(page => {
     console.log(`- ${page.id}: visible=${!page.classList.contains('hidden')}`);
   });
   
-  // Check all sidebar links
   console.log('Sidebar links:');
   document.querySelectorAll('.sidebar-menu a').forEach(link => {
     console.log(`- ${link.getAttribute('data-page')}: visible=${link.style.display !== 'none'}, active=${link.classList.contains('active')}`);
   });
   
-  // Check current agent
   console.log('Current agent:', currentAgent);
-  
-  // Check current page
   console.log('Current page:', currentPage);
 }
 
-// Add this login function
 function login() {
   const agentName = document.getElementById('agentName').value;
   const password = document.getElementById('password').value;
@@ -967,7 +877,6 @@ function login() {
   
   console.log('Attempting login for:', agentName);
   
-  // Create a unique callback name
   const callbackName = 'handleLoginResponse_' + new Date().getTime();
   window[callbackName] = function(response) {
     console.log('Login response:', response);
@@ -981,7 +890,6 @@ function login() {
       return;
     }
     
-    // Login successful
     currentAgent = {
       agentName: response.agentName,
       role: response.role || 'user',
@@ -991,37 +899,27 @@ function login() {
     console.log('Login successful. Current agent:', currentAgent);
     console.log('Role from server:', response.role);
     
-    // Save to session storage
     sessionStorage.setItem('currentAgent', JSON.stringify(currentAgent));
     
-    // Update UI - check if elements exist before accessing
     const loginPage = document.getElementById('loginPage');
     const appContainer = document.getElementById('appContainer');
     const dashboardPage = document.getElementById('dashboardPage');
     
     if (loginPage) loginPage.style.display = 'none';
     
-    // Try both appContainer and dashboardPage
     if (appContainer) {
       appContainer.style.display = 'flex';
     } else if (dashboardPage) {
       dashboardPage.style.display = 'flex';
     }
     
-    // Set up role-based access
     setupRoleBasedAccess();
-    
-    // Navigate to dashboard
     navigateTo('dashboardPageContent');
-    
-    // Show welcome message
     showToast(`Welcome, ${currentAgent.agentName}! (${currentAgent.role})`, 'success');
     
-    // Update header with agent name
     const headerAgentName = document.getElementById('headerAgentName');
     if (headerAgentName) headerAgentName.textContent = currentAgent.agentName;
     
-    // Update sidebar with agent info
     const agentNameDisplay = document.getElementById('agentNameDisplay');
     const agentRoleDisplay = document.getElementById('agentRoleDisplay');
     const agentAvatar = document.getElementById('agentAvatar');
@@ -1031,19 +929,15 @@ function login() {
     if (agentAvatar && currentAgent.avatarUrl) {
       agentAvatar.src = currentAgent.avatarUrl;
     } else if (agentAvatar) {
-      // Set default avatar with agent's initials
       agentAvatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentAgent.agentName)}&background=random`;
     }
     
-    // Debug page elements
     debugPageElements();
   };
   
-  // Create and append the script tag for JSONP request
   const script = document.createElement('script');
   script.src = `https://script.google.com/macros/s/${scriptId}/exec?callback=${callbackName}&action=login&agent=${encodeURIComponent(agentName)}&password=${encodeURIComponent(password)}`;
   
-  // Add error handling
   script.onerror = function() {
     console.error('Login script loading error');
     const loginError = document.getElementById('loginError');
@@ -1054,10 +948,9 @@ function login() {
   };
   
   document.head.appendChild(script);
-  return false; // Prevent form submission
+  return false;
 }
 
-// Function to check and fix admin user
 function checkAndFixAdmin() {
   console.log('Checking and fixing admin user...');
   const callbackName = 'handleCheckAdminResponse_' + new Date().getTime();
@@ -1075,14 +968,11 @@ function checkAndFixAdmin() {
   document.head.appendChild(script);
 }
 
-// Check for existing session on page load
 document.addEventListener('DOMContentLoaded', function() {
   console.log('DOM Content Loaded - Setting up event listeners');
   
-  // Check and fix admin user
   checkAndFixAdmin();
   
-  // Add event listener to login form
   const loginForm = document.getElementById('loginForm');
   if (loginForm) {
     loginForm.addEventListener('submit', function(e) {
@@ -1091,29 +981,24 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
   
-  // Add event listeners to sidebar links
   document.querySelectorAll('.sidebar-menu a').forEach(link => {
     link.addEventListener('click', function(e) {
       e.preventDefault();
       const pageId = this.getAttribute('data-page');
       if (pageId) {
-        // Remove the -form suffix if it's already in the data-page attribute
         const formSuffix = pageId.endsWith('-form') ? '' : '-form';
         navigateTo(pageId + formSuffix);
       }
     });
   });
   
-  // Add logout functionality
   const logoutButton = document.getElementById('logoutButton');
   if (logoutButton) {
     logoutButton.addEventListener('click', function(e) {
       e.preventDefault();
-      // Clear session
       sessionStorage.removeItem('currentAgent');
       currentAgent = null;
       
-      // Show login page, hide app
       const loginPage = document.getElementById('loginPage');
       const dashboardPage = document.getElementById('dashboardPage');
       
@@ -1124,7 +1009,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
   
-  // Check for existing session
   console.log('Checking for existing session...');
   const savedAgent = sessionStorage.getItem('currentAgent');
   
@@ -1133,17 +1017,14 @@ document.addEventListener('DOMContentLoaded', function() {
       currentAgent = JSON.parse(savedAgent);
       console.log('Found saved session for:', currentAgent.agentName, 'with role:', currentAgent.role);
       
-      // Hide login page, show app
       const loginPage = document.getElementById('loginPage');
       const dashboardPage = document.getElementById('dashboardPage');
       
       if (loginPage) loginPage.style.display = 'none';
       if (dashboardPage) dashboardPage.style.display = 'flex';
       
-      // Set up role-based access
       setupRoleBasedAccess();
       
-      // Update UI with agent info
       const headerAgentName = document.getElementById('headerAgentName');
       if (headerAgentName) headerAgentName.textContent = currentAgent.agentName;
       
@@ -1159,7 +1040,6 @@ document.addEventListener('DOMContentLoaded', function() {
         agentAvatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentAgent.agentName)}&background=random`;
       }
       
-      // Navigate to dashboard
       navigateTo('dashboardPageContent');
     } catch (e) {
       console.error('Error restoring session:', e);
@@ -1168,7 +1048,6 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
-// Function to load personal details for the current user
 function loadPersonalDetails() {
   if (!currentAgent || !currentAgent.agentName) {
     console.error('Cannot load personal details: No current agent');
@@ -1178,14 +1057,12 @@ function loadPersonalDetails() {
   
   console.log('Loading personal details for', currentAgent.agentName);
   
-  // Show loading status
   const statusElement = document.getElementById('personalFormSaveStatus');
   if (statusElement) {
     statusElement.textContent = 'Loading...';
     statusElement.style.opacity = '1';
   }
   
-  // Create a unique callback name
   const callbackName = 'handleGetPersonalDetailsResponse_' + new Date().getTime();
   window[callbackName] = function(response) {
     console.log('Personal Details Response:', response);
@@ -1193,7 +1070,6 @@ function loadPersonalDetails() {
     console.log('Response keys:', response ? Object.keys(response) : 'null');
     
     if (response && !response.error) {
-      // Populate the form with the data
       populateForm('personalForm', response);
       if (statusElement) {
         statusElement.textContent = 'Data loaded!';
@@ -1206,25 +1082,21 @@ function loadPersonalDetails() {
       if (statusElement) {
         statusElement.textContent = 'Error loading data';
       }
-      
-      // Make sure record_id is set even if no data was found
       const recordIdInput = document.getElementById('personalRecordId');
       if (recordIdInput) {
         recordIdInput.value = `${currentAgent.agentName}_personalForm`;
       }
     }
     
-    // Clean up the callback
     delete window[callbackName];
   };
   
   const script = document.createElement('script');
-  const timestamp = new Date().getTime(); // Add timestamp to prevent caching
+  const timestamp = new Date().getTime();
   const url = `https://script.google.com/macros/s/${scriptId}/exec?callback=${callbackName}&action=getFormData&sheetName=Personal%20Details&sessionId=${encodeURIComponent(currentAgent.agentName)}&t=${timestamp}`;
   console.log('Loading personal details with URL:', url);
   script.src = url;
   
-  // Add error handling
   script.onerror = function() {
     console.error('Failed to load personal details - script loading error');
     if (statusElement) {
@@ -1235,30 +1107,23 @@ function loadPersonalDetails() {
   document.head.appendChild(script);
 }
 
-// Function to load all personal details for admin view
 function loadAllPersonalDetails() {
-  if (!currentAgent || !currentAgent.role !== 'admin') {
+  if (!currentAgent || currentAgent.role !== 'admin') {
     console.error('Cannot load all personal details: Not an admin');
     return;
   }
   
   console.log('Loading all personal details (admin view)');
   
-  // Create a unique callback name
   const callbackName = 'handleGetAllPersonalDetailsResponse_' + new Date().getTime();
   window[callbackName] = function(response) {
     console.log('All Personal Details Response:', response);
     
     if (response && response.status === 'success' && response.entries) {
-      // Display the entries in a table or other UI element
       console.log(`Received ${response.entries.length} personal detail entries`);
-      
-      // Here you would typically populate a table or other UI element
-      // For now, we'll just log the entries
       response.entries.forEach(entry => {
         console.log(`Entry for ${entry.agent || entry.name}: ${JSON.stringify(entry)}`);
       });
-      
       showToast(`Loaded ${response.entries.length} personal detail entries`, 'success');
     } else {
       console.error('Error loading all personal details:', response ? response.message : 'Unknown error');
@@ -1267,12 +1132,11 @@ function loadAllPersonalDetails() {
   };
   
   const script = document.createElement('script');
-  const timestamp = new Date().getTime(); // Add timestamp to prevent caching
+  const timestamp = new Date().getTime();
   const url = `https://script.google.com/macros/s/${scriptId}/exec?callback=${callbackName}&action=getAllPersonalDetails&t=${timestamp}`;
   console.log('Loading all personal details with URL:', url);
   script.src = url;
   
-  // Add error handling
   script.onerror = function() {
     console.error('Failed to load all personal details - script loading error');
     showToast('Error loading all personal details: Network error', 'error');
@@ -1281,7 +1145,6 @@ function loadAllPersonalDetails() {
   document.head.appendChild(script);
 }
 
-// Function to load users for admin view
 function loadUsers() {
   if (!currentAgent || currentAgent.role !== 'admin') {
     console.error('Cannot load users: Not an admin');
@@ -1291,55 +1154,40 @@ function loadUsers() {
   
   console.log('Loading users (admin view)');
   
-  // Create a unique callback name
   const callbackName = 'handleGetUsersResponse_' + new Date().getTime();
   window[callbackName] = function(response) {
     console.log('Users Response:', response);
     
     if (response && response.status === 'success' && response.users) {
-      // Display the users in the users table
       const usersTableBody = document.querySelector('#usersTable tbody');
       if (!usersTableBody) {
         console.error('Users table body not found');
         return;
       }
       
-      usersTableBody.innerHTML = ''; // Clear existing rows
+      usersTableBody.innerHTML = '';
       
       if (response.users.length === 0) {
-        // Add a message row if no users
         const row = usersTableBody.insertRow();
         const cell = row.insertCell();
-        cell.colSpan = 4; // Span all columns
+        cell.colSpan = 4;
         cell.textContent = 'No users found.';
         cell.style.textAlign = 'center';
         cell.style.padding = '20px';
         return;
       }
       
-      // Add rows for each user
       response.users.forEach(user => {
         const row = usersTableBody.insertRow();
+        row.insertCell().textContent = user.agentName;
+        row.insertCell().textContent = user.role || 'user';
+        row.insertCell().textContent = user.lastUpdated ? new Date(user.lastUpdated).toLocaleString() : 'Unknown';
         
-        // Agent Name
-        const nameCell = row.insertCell();
-        nameCell.textContent = user.agentName;
-        
-        // Role
-        const roleCell = row.insertCell();
-        roleCell.textContent = user.role || 'user';
-        
-        // Last Updated
-        const lastUpdatedCell = row.insertCell();
-        lastUpdatedCell.textContent = user.lastUpdated ? new Date(user.lastUpdated).toLocaleString() : 'Unknown';
-        
-        // Actions
         const actionsCell = row.insertCell();
         const editBtn = document.createElement('button');
         editBtn.className = 'btn btn-sm btn-secondary mr-2';
         editBtn.textContent = 'Edit';
         editBtn.onclick = function() {
-          // Implement edit user functionality
           console.log('Edit user:', user.agentName);
         };
         
@@ -1347,7 +1195,6 @@ function loadUsers() {
         deleteBtn.className = 'btn btn-sm btn-danger';
         deleteBtn.textContent = 'Delete';
         deleteBtn.onclick = function() {
-          // Implement delete user functionality
           console.log('Delete user:', user.agentName);
         };
         
@@ -1363,12 +1210,11 @@ function loadUsers() {
   };
   
   const script = document.createElement('script');
-  const timestamp = new Date().getTime(); // Add timestamp to prevent caching
+  const timestamp = new Date().getTime();
   const url = `https://script.google.com/macros/s/${scriptId}/exec?callback=${callbackName}&action=getUsers&t=${timestamp}`;
   console.log('Loading users with URL:', url);
   script.src = url;
   
-  // Add error handling
   script.onerror = function() {
     console.error('Failed to load users - script loading error');
     showToast('Error loading users: Network error', 'error');
@@ -1377,7 +1223,6 @@ function loadUsers() {
   document.head.appendChild(script);
 }
 
-// Function to set up the progressions form
 function setupProgressionsForm() {
   const form = document.getElementById('progressionsForm');
   if (!form) {
@@ -1387,7 +1232,6 @@ function setupProgressionsForm() {
   
   console.log('Setting up progressions form');
   
-  // Add event listeners to checkboxes for auto-save
   const checkboxes = form.querySelectorAll('input[type="checkbox"]');
   checkboxes.forEach(checkbox => {
     checkbox.addEventListener('change', function() {
@@ -1399,7 +1243,6 @@ function setupProgressionsForm() {
     });
   });
   
-  // Add event listener to the save button
   const saveButton = form.querySelector('button[type="submit"], button.save-button');
   if (saveButton) {
     saveButton.addEventListener('click', function(e) {
@@ -1409,11 +1252,9 @@ function setupProgressionsForm() {
     });
   }
   
-  // Load initial data
   loadProgressionsData();
 }
 
-// Function to set up the licensing form
 function setupLicensingForm() {
   const form = document.getElementById('licensingForm');
   if (!form) {
@@ -1423,7 +1264,6 @@ function setupLicensingForm() {
   
   console.log('Setting up licensing form');
   
-  // Add event listeners to checkboxes for auto-save
   const checkboxes = form.querySelectorAll('input[type="checkbox"]');
   checkboxes.forEach(checkbox => {
     checkbox.addEventListener('change', function() {
@@ -1435,7 +1275,6 @@ function setupLicensingForm() {
     });
   });
   
-  // Add event listener to the save button
   const saveButton = form.querySelector('button[type="submit"], button.save-button');
   if (saveButton) {
     saveButton.addEventListener('click', function(e) {
@@ -1445,11 +1284,9 @@ function setupLicensingForm() {
     });
   }
   
-  // Load initial data
   loadLicensingData();
 }
 
-// Function to save licensing form
 function saveLicensingForm() {
   const form = document.getElementById('licensingForm');
   if (!form) {
@@ -1463,17 +1300,13 @@ function saveLicensingForm() {
   }
   
   const saveStatusElementId = 'licensingFormSaveStatus';
-  
-  // Show immediate feedback
   showToast('Saving licensing checklist...', 'info');
   updateSaveStatus('Saving...', saveStatusElementId);
   
-  // Get all form data
   const formData = new FormData(form);
   const recordIdInput = form.querySelector('input[name="record_id"]');
   let recordId = recordIdInput ? recordIdInput.value : '';
   
-  // If no record_id, create one
   if (!recordId) {
     recordId = `${currentAgent.agentName}_licensingForm`;
     if (recordIdInput) {
@@ -1481,27 +1314,18 @@ function saveLicensingForm() {
     }
   }
   
-  // Convert FormData to a regular object
   const fields = {};
   for (let [key, value] of formData.entries()) {
     fields[key] = value;
   }
   
-  // For checkboxes that aren't checked, they won't be in formData
-  // So we need to add them with a value of false
   const checkboxes = form.querySelectorAll('input[type="checkbox"]');
   checkboxes.forEach(checkbox => {
-    if (!formData.has(checkbox.name)) {
-      fields[checkbox.name] = false;
-    } else {
-      // Ensure checked checkboxes have value true
-      fields[checkbox.name] = true;
-    }
+    fields[checkbox.name] = formData.has(checkbox.name) ? true : false;
   });
   
-  // Add agent name to the data
   fields['agentName'] = currentAgent.agentName;
-  fields['agent'] = currentAgent.agentName; // Also include 'agent' for compatibility
+  fields['agent'] = currentAgent.agentName;
   
   console.log('Agent name being saved:', currentAgent.agentName);
   console.log('Fields object:', fields);
@@ -1515,24 +1339,20 @@ function saveLicensingForm() {
   
   console.log('Saving licensing checklist with payload:', payload);
   
-  // Create a unique callback name to avoid conflicts
   const callbackName = 'handleSaveLicensingResponse_' + new Date().getTime();
   window[callbackName] = function(response) {
     console.log('Save licensing response:', response);
     showToast('Licensing checklist saved successfully!', 'success');
     updateSaveStatus('Saved!', saveStatusElementId);
     
-    // Reload the data after a short delay to ensure it's updated
     setTimeout(() => {
       loadLicensingData();
     }, 1000);
   };
   
-  // Use JSONP approach with script tag
   const script = document.createElement('script');
   script.src = `https://script.google.com/macros/s/${scriptId}/exec?callback=${callbackName}&action=saveData&sheetName=Licensing%20Checklist&record_id=${encodeURIComponent(recordId)}&agentName=${encodeURIComponent(currentAgent.agentName)}&agent=${encodeURIComponent(currentAgent.agentName)}&data=${encodeURIComponent(JSON.stringify(fields))}`;
   
-  // Add error handling
   script.onerror = function() {
     console.error('Failed to save licensing checklist - script loading error');
     showToast('Error saving licensing checklist. Please try again.', 'error');
@@ -1542,7 +1362,6 @@ function saveLicensingForm() {
   document.head.appendChild(script);
 }
 
-// Function to load licensing data
 function loadLicensingData() {
   if (!currentAgent || !currentAgent.agentName) {
     console.error('No current agent found');
@@ -1552,20 +1371,17 @@ function loadLicensingData() {
   
   console.log('Loading licensing checklist for', currentAgent.agentName);
   
-  // Show loading status
   const statusElement = document.getElementById('licensingFormSaveStatus');
   if (statusElement) {
     statusElement.textContent = 'Loading...';
     statusElement.style.opacity = '1';
   }
   
-  // Create a unique callback name
   const callbackName = 'handleGetLicensingResponse_' + new Date().getTime();
   window[callbackName] = function(response) {
     console.log('Licensing Checklist Response:', response);
     
     if (response && !response.error) {
-      // Populate the form with the data
       populateLicensingForm(response);
       if (statusElement) {
         statusElement.textContent = 'Data loaded!';
@@ -1578,25 +1394,21 @@ function loadLicensingData() {
       if (statusElement) {
         statusElement.textContent = 'Error loading data';
       }
-      
-      // Make sure record_id is set even if no data was found
       const recordIdInput = document.getElementById('licensingRecordId');
       if (recordIdInput) {
         recordIdInput.value = `${currentAgent.agentName}_licensingForm`;
       }
     }
     
-    // Clean up the callback
     delete window[callbackName];
   };
   
   const script = document.createElement('script');
-  const timestamp = new Date().getTime(); // Add timestamp to prevent caching
+  const timestamp = new Date().getTime();
   const url = `https://script.google.com/macros/s/${scriptId}/exec?callback=${callbackName}&action=getFormData&sheetName=Licensing%20Checklist&sessionId=${encodeURIComponent(currentAgent.agentName)}&t=${timestamp}`;
   console.log('Loading licensing checklist with URL:', url);
   script.src = url;
   
-  // Add error handling
   script.onerror = function() {
     console.error('Failed to load licensing checklist - script loading error');
     if (statusElement) {
@@ -1607,7 +1419,6 @@ function loadLicensingData() {
   document.head.appendChild(script);
 }
 
-// Function to populate licensing form with checkboxes
 function populateLicensingForm(data) {
   console.log('Populating licensing form with data:', data);
   const form = document.getElementById('licensingForm');
@@ -1616,24 +1427,19 @@ function populateLicensingForm(data) {
     return;
   }
 
-  // Set the record_id
   const recordIdInput = form.querySelector('input[name="record_id"]');
   if (recordIdInput) {
     if (data.record_id) {
       recordIdInput.value = data.record_id;
     } else if (currentAgent) {
-      // If no record_id in data, create one
       recordIdInput.value = `${currentAgent.agentName}_licensingForm`;
     }
   }
   
-  // Loop through all checkboxes and set their state based on data
   const checkboxes = form.querySelectorAll('input[type="checkbox"]');
   checkboxes.forEach(checkbox => {
     const fieldName = checkbox.name;
-    // Check if the data contains this field
     if (data[fieldName] !== undefined) {
-      // Set checkbox checked state based on value (true/false, Yes/No, or 1/0)
       const value = data[fieldName];
       if (typeof value === 'boolean') {
         checkbox.checked = value;
@@ -1648,13 +1454,11 @@ function populateLicensingForm(data) {
       }
       console.log(`Set checkbox ${fieldName} to ${checkbox.checked} based on value: ${value} (${typeof value})`);
     } else {
-      // Default to unchecked if no data
       checkbox.checked = false;
       console.log(`No data for checkbox ${fieldName}, setting to unchecked`);
     }
   });
   
-  // Also handle any text inputs or other field types
   const textInputs = form.querySelectorAll('input[type="text"], textarea, select');
   textInputs.forEach(input => {
     const fieldName = input.name;
@@ -1665,155 +1469,175 @@ function populateLicensingForm(data) {
   });
 }
 
-// Update navigateTo function to call setupProgressionsForm
-function navigateTo(pageId) {
-  console.log(`Attempting to navigate to: ${pageId}`);
-  
-  // Handle special case for dashboard
-  if (pageId === 'dashboard') {
-    pageId = 'dashboardPageContent';
+function setupCareerProgressionForm() {
+  const form = document.getElementById('careerProgressionForm');
+  if (!form) {
+    console.error('Career progression form not found');
+    return;
   }
   
-  // Fix double -form suffix issue
-  if (pageId.endsWith('-form-form')) {
-    pageId = pageId.replace('-form-form', '-form');
-    console.log(`Fixed double form suffix, now navigating to: ${pageId}`);
-  }
+  console.log('Setting up career progression form');
   
-  // Map sidebar data-page values to actual page IDs
-  const pageIdMap = {
-    'personal-details': 'personal-details-form',
-    'system-progressions': 'system-progressions-form',
-    'licensing-checklist': 'licensing-checklist-form',
-    'dreams-list': 'dreams-list-form',
-    'expenses-to-income-report': 'expenses-to-income-report-form',
-    'potential-business-partners': 'potential-business-partners-form',
-    'potential-field-trainings': 'potential-field-trainings-form',
-    'user-management': 'user-management-form'
-  };
-  
-  // Check if we need to map the pageId
-  if (pageIdMap[pageId]) {
-    console.log(`Mapping page ID from ${pageId} to ${pageIdMap[pageId]}`);
-    pageId = pageIdMap[pageId];
-  }
-  
-  // First, check if the page exists
-  const targetPage = document.getElementById(pageId);
-  if (!targetPage) {
-    console.error(`Error: Page with ID "${pageId}" not found`);
-    console.log('Available page IDs:');
-    document.querySelectorAll('.page-content').forEach(page => {
-      console.log(`- ${page.id}`);
+  // Add event listeners to all checkboxes
+  const checkboxes = form.querySelectorAll('input[type="checkbox"]');
+  checkboxes.forEach(checkbox => {
+    checkbox.addEventListener('change', function() {
+      console.log(`Checkbox ${this.name} changed to ${this.checked}`);
+      if (autoSaveEnabled) {
+        console.log('Auto-save is enabled, saving career progression form...');
+        saveCareerProgressionData(new Event('submit'));
+      }
     });
-    showToast(`Error: Page not found (${pageId})`, 'error');
-    return; // Exit the function if the page doesn't exist
-  }
-
-  console.log(`Found target page: ${pageId}`);
-
-  // Hide all pages and show the target page
-  const pages = document.querySelectorAll('.page-content');
-  pages.forEach(page => {
-    page.classList.add('hidden');
-    console.log(`Hidden page: ${page.id}`);
   });
   
-  targetPage.classList.remove('hidden');
-  console.log(`Showing page: ${pageId}`);
-
-  // Load data for specific forms when navigating to them
-  if (pageId === 'system-progressions-form') {
-    console.log('Loading progressions data for newly navigated page');
-    setupProgressionsForm();
+  const saveButton = form.querySelector('button[type="submit"], button.save-button');
+  if (saveButton) {
+    saveButton.addEventListener('click', function(e) {
+      e.preventDefault();
+      console.log('Career progression save button clicked');
+      saveCareerProgressionData(e);
+    });
   }
   
-  // Load data for licensing checklist when navigating to it
-  if (pageId === 'licensing-checklist-form') {
-    console.log('Loading licensing checklist data for newly navigated page');
-    setupLicensingForm();
-  }
-  
-  // If navigating to personal details, load the current user's personal details
-  if (pageId === 'personal-details-form') {
-    console.log('Loading personal details for current user');
-    setTimeout(() => {
-      loadPersonalDetails(); // Load the current user's personal details
-    }, 100);
-    
-    // If user is admin, also load all personal details
-    if (currentAgent && currentAgent.role === 'admin') {
-      console.log('Admin navigated to personal details, loading all personal details');
-      setTimeout(() => {
-        loadAllPersonalDetails(); // Delay slightly to ensure page is ready
-      }, 200);
-    }
-  }
-  
-  // If navigating to user management and user is admin, load users list
-  if (pageId === 'user-management-form' && currentAgent && currentAgent.role === 'admin') {
-    loadUsers();
-  }
-  
-  // Update sidebar active link
-  const sidebarLinks = document.querySelectorAll('.sidebar-menu a');
-  sidebarLinks.forEach(link => link.classList.remove('active'));
-  
-  // Find and activate the corresponding sidebar link
-  const sidebarPageIdMap = {
-    'dashboardPageContent': 'dashboard',
-    'personal-details-form': 'personal-details',
-    'system-progressions-form': 'system-progressions',
-    'licensing-checklist-form': 'licensing-checklist',
-    'dreams-list-form': 'dreams-list',
-    'expenses-to-income-report-form': 'expenses-to-income-report',
-    'potential-business-partners-form': 'potential-business-partners',
-    'potential-field-trainings-form': 'potential-field-trainings',
-    'user-management-form': 'user-management'
-  };
-  
-  const sidebarPageId = sidebarPageIdMap[pageId];
-  if (sidebarPageId) {
-    const activeLink = document.querySelector(`.sidebar-menu a[data-page="${sidebarPageId}"]`);
-    if (activeLink) {
-      activeLink.classList.add('active');
-      console.log(`Set active sidebar link: ${sidebarPageId}`);
-    }
-  }
-  
-  currentPage = pageId; // Update current page global variable
-  console.log(`Successfully navigated to: ${pageId}`);
+  loadCareerProgressionData();
 }
 
-// Add this to your document ready or initialization code
-document.addEventListener('DOMContentLoaded', function() {
-  // Other initialization code...
+function loadCareerProgressionData() {
+  if (!currentAgent || !currentAgent.agentName) {
+    console.error('No current agent found');
+    showToast('Please log in to view your career progression', 'error');
+    return;
+  }
   
-  // Set up event delegation for the progressions form
-  document.body.addEventListener('click', function(e) {
-    // Check if the clicked element is a checkbox in the progressions form
-    if (e.target.matches('#progressionsForm input[type="checkbox"]')) {
-      console.log(`Checkbox ${e.target.name} clicked, new state: ${e.target.checked}`);
-      if (autoSaveEnabled) {
-        console.log('Auto-save is enabled, saving form...');
-        saveProgressionsForm();
+  console.log('Loading career progression for', currentAgent.agentName);
+  
+  const statusElement = document.getElementById('careerProgressionFormSaveStatus');
+  if (statusElement) {
+    statusElement.textContent = 'Loading...';
+    statusElement.style.opacity = '1';
+  }
+  
+  const callbackName = 'handleGetCareerProgressionResponse_' + new Date().getTime();
+  window[callbackName] = function(response) {
+    console.log('Career Progression Response:', response);
+    
+    if (response && !response.error) {
+      populateCareerProgressionForm(response);
+      if (statusElement) {
+        statusElement.textContent = 'Data loaded!';
+        setTimeout(() => {
+          statusElement.style.opacity = '0';
+        }, 3000);
+      }
+    } else {
+      console.error('Error loading career progression:', response ? response.error : 'Unknown error');
+      if (statusElement) {
+        statusElement.textContent = 'Error loading data';
+      }
+      const recordIdInput = document.getElementById('careerProgressionRecordId');
+      if (recordIdInput) {
+        recordIdInput.value = `${currentAgent.agentName}_careerProgressionForm`;
       }
     }
     
-    // Check if the clicked element is the save button in the progressions form
-    if (e.target.matches('#progressionsForm button[type="submit"], #progressionsForm .save-button')) {
-      e.preventDefault();
-      console.log('Save button clicked');
-      saveProgressionsForm();
+    delete window[callbackName];
+  };
+  
+  const script = document.createElement('script');
+  const timestamp = new Date().getTime();
+  const url = `https://script.google.com/macros/s/${scriptId}/exec?callback=${callbackName}&action=getFormData&sheetName=Career%20Progression&sessionId=${encodeURIComponent(currentAgent.agentName)}&t=${timestamp}`;
+  console.log('Loading career progression with URL:', url);
+  script.src = url;
+  
+  script.onerror = function() {
+    console.error('Failed to load career progression - script loading error');
+    if (statusElement) {
+      statusElement.textContent = 'Error loading data: Network error';
     }
-  });
-});
+  };
+  
+  document.head.appendChild(script);
+}
 
-// Document ready function
+function saveCareerProgressionData(event) {
+  event.preventDefault();
+  
+  if (!currentAgent) {
+    console.error('No agent logged in');
+    showToast('Please log in to save data', 'error');
+    return;
+  }
+  
+  const saveStatusElementId = 'careerProgressionFormSaveStatus';
+  updateSaveStatus('Saving...', saveStatusElementId);
+  
+  const form = document.getElementById('careerProgressionForm');
+  if (!form) {
+    console.error('Career progression form not found');
+    showToast('Error: Form not found', 'error');
+    return;
+  }
+  
+  const formData = new FormData(form);
+  const fields = {};
+  
+  for (const [key, value] of formData.entries()) {
+    fields[key] = value;
+  }
+  
+  // Important: Handle checkboxes properly
+  const checkboxes = form.querySelectorAll('input[type="checkbox"]');
+  checkboxes.forEach(checkbox => {
+    // Store checkbox values as "true" or "false" strings
+    // This is important for Google Sheets compatibility
+    fields[checkbox.name] = checkbox.checked ? "true" : "false";
+  });
+  
+  fields['agentName'] = currentAgent.agentName;
+  fields['agent'] = currentAgent.agentName;
+  
+  const recordIdField = document.getElementById('careerProgressionRecordId');
+  let recordId = recordIdField?.value || `${currentAgent.agentName}_careerProgressionForm`;
+  if (recordIdField) {
+    recordIdField.value = recordId;
+  }
+  
+  console.log('Saving career progression data with record ID:', recordId);
+  console.log('Fields being saved:', fields); // Debug log
+  
+  const callbackName = 'handleSaveCareerProgressionResponse_' + new Date().getTime();
+  window[callbackName] = function(response) {
+    console.log('Save career progression response:', response);
+    if (response && !response.error) {
+      showToast('Career progression data saved successfully!', 'success');
+      updateSaveStatus('Saved!', saveStatusElementId);
+      
+      // Don't reload immediately - give the server time to process
+      setTimeout(() => loadCareerProgressionData(), 1000);
+    } else {
+      console.error('Error saving career progression:', response?.error || 'Unknown error');
+      showToast('Error saving career progression. Please try again.', 'error');
+      updateSaveStatus('Error saving!', saveStatusElementId);
+    }
+    delete window[callbackName];
+  };
+  
+  const script = document.createElement('script');
+  script.src = `https://script.google.com/macros/s/${scriptId}/exec?callback=${callbackName}&action=saveData&sheetName=Career%20Progression&record_id=${encodeURIComponent(recordId)}&agentName=${encodeURIComponent(currentAgent.agentName)}&agent=${encodeURIComponent(currentAgent.agentName)}&data=${encodeURIComponent(JSON.stringify(fields))}`;
+  
+  script.onerror = function() {
+    console.error('Failed to save career progression - script loading error');
+    showToast('Error saving career progression: Network error', 'error');
+    updateSaveStatus('Error saving!', saveStatusElementId);
+    delete window[callbackName];
+  };
+  
+  document.head.appendChild(script);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   console.log('Document ready, initializing app...');
   
-  // Set up event listeners for sidebar navigation
   document.querySelectorAll('.sidebar-menu a').forEach(link => {
     link.addEventListener('click', function(e) {
       e.preventDefault();
@@ -1822,37 +1646,36 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
   
-  // Set up event listeners for form submissions
   document.querySelectorAll('form').forEach(form => {
     form.addEventListener('submit', function(e) {
-      e.preventDefault(); // Prevent default form submission
+      e.preventDefault();
       const formId = this.id;
       console.log(`Form ${formId} submitted`);
       
-      // Call the appropriate save function based on form ID
       if (formId === 'personalForm') {
-        savePersonalForm();
+        saveFormData(formId);
       } else if (formId === 'progressionsForm') {
         saveProgressionsForm();
       } else if (formId === 'licensingForm') {
         saveLicensingForm();
       } else if (formId === 'dreamsForm') {
-        saveDreamsForm();
+        saveFormData(formId);
       } else if (formId === 'expensesForm') {
-        saveExpensesForm();
+        saveFormData(formId);
       } else if (formId === 'partnersForm') {
-        savePartnersForm();
+        saveFormData(formId);
       } else if (formId === 'clientsForm') {
-        saveClientsForm();
+        saveFormData(formId);
       } else if (formId === 'loginForm') {
-        handleLogin();
+        login();
       } else if (formId === 'userForm') {
-        saveUser();
+        saveFormData(formId);
+      } else if (formId === 'careerProgressionForm') {
+        saveCareerProgressionData(e);
       }
     });
   });
   
-  // Set up auto-save toggle buttons
   document.querySelectorAll('.auto-save-toggle').forEach(btn => {
     btn.addEventListener('click', function(e) {
       e.preventDefault();
@@ -1860,66 +1683,530 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
   
-  // Add logout functionality
-  const logoutButton = document.getElementById('logoutButton');
-  if (logoutButton) {
-    logoutButton.addEventListener('click', function(e) {
+  document.body.addEventListener('click', function(e) {
+    if (e.target.matches('#progressionsForm input[type="checkbox"]')) {
+      console.log(`Checkbox ${e.target.name} clicked, new state: ${e.target.checked}`);
+      if (autoSaveEnabled) {
+        console.log('Auto-save is enabled, saving form...');
+        saveProgressionsForm();
+      }
+    }
+    
+    if (e.target.matches('#progressionsForm button[type="submit"], #progressionsForm .save-button')) {
       e.preventDefault();
-      // Clear session
-      sessionStorage.removeItem('currentAgent');
-      currentAgent = null;
-      
-      // Show login page, hide app
-      const loginPage = document.getElementById('loginPage');
-      const dashboardPage = document.getElementById('dashboardPage');
-      
-      if (loginPage) loginPage.style.display = 'flex';
-      if (dashboardPage) dashboardPage.style.display = 'none';
-      
-      showToast('You have been logged out.', 'info');
+      console.log('Save button clicked');
+      saveProgressionsForm();
+    }
+    
+    if (e.target.matches('#licensingForm input[type="checkbox"]')) {
+      console.log(`Checkbox ${e.target.name} clicked, new state: ${e.target.checked}`);
+      if (autoSaveEnabled) {
+        console.log('Auto-save is enabled, saving licensing form...');
+        saveLicensingForm();
+      }
+    }
+    
+    if (e.target.matches('#licensingForm button[type="submit"], #licensingForm .save-button')) {
+      e.preventDefault();
+      console.log('Licensing save button clicked');
+      saveLicensingForm();
+    }
+    
+    if (e.target.matches('#careerProgressionForm input[type="checkbox"]')) {
+      console.log(`Checkbox ${e.target.name} clicked, new state: ${e.target.checked}`);
+      if (autoSaveEnabled) {
+        console.log('Auto-save is enabled, saving career progression form...');
+        saveCareerProgressionData(new Event('submit'));
+      }
+    }
+    
+    if (e.target.matches('#careerProgressionForm button[type="submit"], #careerProgressionForm .save-button')) {
+      e.preventDefault();
+      console.log('Career progression save button clicked');
+      saveCareerProgressionData(new Event('submit'));
+    }
+  });
+});
+
+// Add event listener for the "Add New Dream" button
+document.getElementById('addDreamEntryBtn').addEventListener('click', function() {
+  // Clear the form fields
+  document.getElementById('modalDreamForm').reset();
+  document.getElementById('modalDreamRecordId').value = '';
+  
+  // Show the modal
+  const modal = document.getElementById('dreamEntryModal');
+  modal.classList.add('show');
+});
+
+// Add event listener for the close button
+document.getElementById('closeDreamModal').addEventListener('click', function() {
+  document.getElementById('dreamEntryModal').classList.remove('show');
+});
+
+// Add event listener for the save button in the dream modal
+document.getElementById('saveModalDreamBtn').addEventListener('click', function() {
+  const form = document.getElementById('modalDreamForm');
+  const timeFrame = document.getElementById('modalTimeFrame').value;
+  const dream = document.getElementById('modalDream').value;
+  const why = document.getElementById('modalWhy').value;
+  const recordId = document.getElementById('modalDreamRecordId').value;
+  
+  // Validate required fields
+  if (!dream) {
+    showToast('Please enter a dream', 'error');
+    return;
+  }
+  
+  // Add to dreams array or update existing entry
+  if (recordId) {
+    // Update existing entry
+    const index = dreamsData.findIndex(entry => entry.record_id === recordId);
+    if (index !== -1) {
+      dreamsData[index] = {
+        record_id: recordId,
+        time_frame: timeFrame,
+        dream: dream,
+        why: why
+      };
+    }
+  } else {
+    // Add new entry
+    const newRecordId = `dream_${Date.now()}`;
+    dreamsData.push({
+      record_id: newRecordId,
+      time_frame: timeFrame,
+      dream: dream,
+      why: why
     });
   }
   
-  // Check for existing session
-  console.log('Checking for existing session...');
-  const savedAgent = sessionStorage.getItem('currentAgent');
+  // Re-render the table
+  renderMultiEntryTable('dreamsForm', dreamsData);
   
-  if (savedAgent) {
-    try {
-      currentAgent = JSON.parse(savedAgent);
-      console.log('Found saved session for:', currentAgent.agentName, 'with role:', currentAgent.role);
+  // Close the modal
+  document.getElementById('dreamEntryModal').classList.remove('show');
+  
+  // Show success message
+  showToast('Dream saved successfully', 'success');
+});
+
+// Load dreams data when the page loads
+function loadDreamsData() {
+  if (!currentAgent || !currentAgent.agentName) {
+    console.error('No current agent found');
+    showToast('Please log in to view your dreams', 'error');
+    return;
+  }
+  
+  console.log('Loading dreams data for agent:', currentAgent.agentName);
+  
+  const statusElement = document.getElementById('dreamsFormSaveStatus');
+  if (statusElement) {
+    statusElement.textContent = 'Loading...';
+    statusElement.style.opacity = '1';
+  }
+  
+  // Create a unique callback name
+  const callbackName = 'handleLoadDreamsResponse_' + new Date().getTime();
+  
+  // Create global callback function
+  window[callbackName] = function(response) {
+    console.log('Load dreams response:', response);
+    
+    if (response && response.entries) {
+      dreamsData = response.entries.map(entry => ({
+        record_id: entry.record_id || generateRecordId(currentAgent.agentName, 'dream'),
+        agent: entry.agent || currentAgent.agentName,
+        time_frame: entry.time_frame || '',
+        dream: entry.dream || '',
+        why: entry.why || ''
+      }));
       
-      // Hide login page, show app
-      const loginPage = document.getElementById('loginPage');
-      const dashboardPage = document.getElementById('dashboardPage');
+      console.log('Loaded dreams data:', dreamsData);
       
-      if (loginPage) loginPage.style.display = 'none';
-      if (dashboardPage) dashboardPage.style.display = 'flex';
+      // Render the dreams table
+      renderDreamsTable();
       
-      // Set up role-based access
-      setupRoleBasedAccess();
+      if (statusElement) {
+        statusElement.textContent = 'Data loaded!';
+        setTimeout(() => {
+          statusElement.style.opacity = '0';
+        }, 3000);
+      }
+    } else {
+      console.log('No dreams data found or error in response');
+      dreamsData = []; // Initialize with empty array
+      renderDreamsTable(); // Render empty table
       
-      // Update UI with agent info
-      const headerAgentName = document.getElementById('headerAgentName');
-      if (headerAgentName) headerAgentName.textContent = currentAgent.agentName;
-      
-      const agentNameDisplay = document.getElementById('agentNameDisplay');
-      const agentRoleDisplay = document.getElementById('agentRoleDisplay');
-      const agentAvatar = document.getElementById('agentAvatar');
-      
-      if (agentNameDisplay) agentNameDisplay.textContent = currentAgent.agentName;
-      if (agentRoleDisplay) agentRoleDisplay.textContent = currentAgent.role;
-      if (agentAvatar && currentAgent.avatarUrl) {
-        agentAvatar.src = currentAgent.avatarUrl;
-      } else if (agentAvatar) {
-        agentAvatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentAgent.agentName)}&background=random`;
+      if (statusElement) {
+        statusElement.textContent = 'No data found';
+        setTimeout(() => {
+          statusElement.style.opacity = '0';
+        }, 3000);
+      }
+    }
+    
+    // Clean up the global callback
+    delete window[callbackName];
+  };
+  
+  // Create and append the script element
+  const script = document.createElement('script');
+  const timestamp = new Date().getTime();
+  script.src = `https://script.google.com/macros/s/${scriptId}/exec?callback=${callbackName}&action=getFormData&sheetName=Dreams%20List&sessionId=${encodeURIComponent(currentAgent.agentName)}&t=${timestamp}`;
+  
+  script.onerror = function() {
+    console.error('Failed to load dreams data - script loading error');
+    showToast('Error loading dreams: Network error', 'error');
+    if (statusElement) {
+      statusElement.textContent = 'Error loading!';
+    }
+    delete window[callbackName];
+  };
+  
+  document.head.appendChild(script);
+}
+
+// Function to render the dreams table
+function renderDreamsTable() {
+  const tableBody = document.querySelector('#dreamsTable tbody');
+  if (!tableBody) {
+    console.error('Dreams table body not found');
+    return;
+  }
+  
+  // Clear the table
+  tableBody.innerHTML = '';
+  
+  // Add rows for existing data
+  dreamsData.forEach((dream, index) => {
+    const row = document.createElement('tr');
+    
+    // Time Frame cell
+    const timeFrameCell = document.createElement('td');
+    const timeFrameInput = document.createElement('input');
+    timeFrameInput.type = 'text';
+    timeFrameInput.value = dream.time_frame || '';
+    timeFrameInput.className = 'form-control';
+    timeFrameInput.addEventListener('change', function() {
+      dreamsData[index].time_frame = this.value;
+      if (autoSaveEnabled) {
+        saveDreamsToServer();
+      }
+    });
+    timeFrameCell.appendChild(timeFrameInput);
+    
+    // Dream cell
+    const dreamCell = document.createElement('td');
+    const dreamInput = document.createElement('textarea');
+    dreamInput.value = dream.dream || '';
+    dreamInput.className = 'form-control';
+    dreamInput.rows = 3;
+    dreamInput.addEventListener('change', function() {
+      dreamsData[index].dream = this.value;
+      if (autoSaveEnabled) {
+        saveDreamsToServer();
+      }
+    });
+    dreamCell.appendChild(dreamInput);
+    
+    // Why cell
+    const whyCell = document.createElement('td');
+    const whyInput = document.createElement('textarea');
+    whyInput.value = dream.why || '';
+    whyInput.className = 'form-control';
+    whyInput.rows = 3;
+    whyInput.addEventListener('change', function() {
+      dreamsData[index].why = this.value;
+      if (autoSaveEnabled) {
+        saveDreamsToServer();
+      }
+    });
+    whyCell.appendChild(whyInput);
+    
+    // Actions cell
+    const actionsCell = document.createElement('td');
+    const deleteBtn = document.createElement('button');
+    deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+    deleteBtn.className = 'btn btn-sm btn-danger';
+    deleteBtn.addEventListener('click', function() {
+      dreamsData.splice(index, 1);
+      renderDreamsTable();
+      if (autoSaveEnabled) {
+        saveDreamsToServer();
+      }
+    });
+    actionsCell.appendChild(deleteBtn);
+    
+    // Add all cells to the row
+    row.appendChild(timeFrameCell);
+    row.appendChild(dreamCell);
+    row.appendChild(whyCell);
+    row.appendChild(actionsCell);
+    
+    // Add the row to the table
+    tableBody.appendChild(row);
+  });
+  
+  // Add empty row if no data
+  if (dreamsData.length === 0) {
+    const emptyRow = document.createElement('tr');
+    const emptyCell = document.createElement('td');
+    emptyCell.colSpan = 4;
+    emptyCell.textContent = 'No dreams added yet. Click "Add Dream" to get started.';
+    emptyCell.className = 'text-center py-4 text-gray-500';
+    emptyRow.appendChild(emptyCell);
+    tableBody.appendChild(emptyRow);
+  }
+}
+
+// Function to add a new dream
+function addNewDream() {
+  if (!currentAgent || !currentAgent.agentName) {
+    showToast('Please log in to add dreams', 'error');
+    return;
+  }
+  
+  const newDream = {
+    record_id: generateRecordId(currentAgent.agentName, 'dream'),
+    agent: currentAgent.agentName,
+    time_frame: '',
+    dream: '',
+    why: ''
+  };
+  
+  dreamsData.push(newDream);
+  renderDreamsTable();
+  
+  // Scroll to the bottom of the table
+  const table = document.getElementById('dreamsTable');
+  if (table) {
+    table.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }
+}
+
+// Save all dreams to the server
+function saveDreamsToServer() {
+  if (!currentAgent || !currentAgent.agentName) {
+    showToast('Login required to save data.', 'error');
+    return;
+  }
+  
+  if (dreamsData.length === 0) {
+    showToast('No dreams to save', 'warning');
+    return;
+  }
+  
+  const saveStatusElement = document.getElementById('dreamsFormSaveStatus');
+  if (saveStatusElement) {
+    saveStatusElement.textContent = 'Saving...';
+    saveStatusElement.style.opacity = '1';
+  }
+  
+  // Add agent name to each entry and ensure all required fields exist
+  const entriesWithAgent = dreamsData.map(entry => {
+    // Make sure all required fields exist and use 'agent' consistently
+    return {
+      record_id: entry.record_id || generateRecordId(currentAgent.agentName, 'dream'),
+      agent: currentAgent.agentName, // Use 'agent' consistently
+      time_frame: entry.time_frame || '',
+      dream: entry.dream || '',
+      why: entry.why || ''
+    };
+  });
+
+  console.log('Saving dreams data:', entriesWithAgent);
+
+  // Create payload with proper structure
+  const payload = {
+    formId: 'dreamsForm',
+    agent: currentAgent.agentName, // Use 'agent' consistently
+    entries: entriesWithAgent,
+    sheetName: 'Dreams List'
+  };
+  
+  const callbackName = 'handleSaveDreamsResponse_' + new Date().getTime();
+  
+  // Create global callback function
+  window[callbackName] = function(response) {
+    console.log('Save dreams response:', response);
+    
+    if (response && response.status === 'success') {
+      showToast('Dreams saved successfully!', 'success');
+      if (saveStatusElement) {
+        saveStatusElement.innerHTML = '<i class="fas fa-check text-green-500 mr-1"></i> Saved';
+        setTimeout(() => {
+          saveStatusElement.style.opacity = '0';
+        }, 3000);
       }
       
-      // Navigate to dashboard
-      navigateTo('dashboardPageContent');
-    } catch (e) {
-      console.error('Error restoring session:', e);
-      sessionStorage.removeItem('currentAgent');
+      // Reload dreams data to ensure we have the latest from the server
+      setTimeout(() => loadDreamsData(), 1000);
+    } else {
+      console.error('Error saving dreams:', response?.message || 'Unknown error');
+      showToast('Error saving dreams: ' + (response?.message || 'Unknown error'), 'error');
+      if (saveStatusElement) {
+        saveStatusElement.innerHTML = '<i class="fas fa-times text-red-500 mr-1"></i> Error saving';
+      }
     }
-  }
+    
+    // Clean up the global callback
+    delete window[callbackName];
+  };
+  
+  // Create and append the script element
+  const script = document.createElement('script');
+  script.src = `https://script.google.com/macros/s/${scriptId}/exec?callback=${callbackName}&action=bulkUpdateEntries&data=${encodeURIComponent(JSON.stringify(payload))}`;
+  
+  console.log('Sending request to save dreams:', script.src);
+  
+  script.onerror = function() {
+    console.error('Failed to save dreams - script loading error');
+    showToast('Error saving dreams: Network error', 'error');
+    if (saveStatusElement) {
+      saveStatusElement.innerHTML = '<i class="fas fa-times text-red-500 mr-1"></i> Error saving';
+    }
+    delete window[callbackName];
+  };
+  
+  document.head.appendChild(script);
+}
+
+// Add event listener for the Save All Dreams button
+document.getElementById('saveDreamsBtn').addEventListener('click', function(e) {
+  e.preventDefault();
+  saveDreamsToServer();
 });
+
+// Function to edit a multi-entry item
+function editMultiEntry(formId, index) {
+  if (formId === 'dreamsForm') {
+    const entry = dreamsData[index];
+    if (!entry) {
+      console.error('Entry not found at index', index);
+      return;
+    }
+    
+    // Populate the modal form with the entry data
+    document.getElementById('modalDreamRecordId').value = entry.record_id || '';
+    
+    // Set the dropdown value
+    const timeFrameSelect = document.getElementById('modalTimeFrame');
+    const timeFrameValue = entry.time_frame || '3 Months';
+    
+    // Find the option with the matching value
+    for (let i = 0; i < timeFrameSelect.options.length; i++) {
+      if (timeFrameSelect.options[i].value === timeFrameValue) {
+        timeFrameSelect.selectedIndex = i;
+        break;
+      }
+    }
+    
+    document.getElementById('modalDream').value = entry.dream || '';
+    document.getElementById('modalWhy').value = entry.why || '';
+    
+    // Show the modal
+    document.getElementById('dreamEntryModal').classList.add('show');
+  }
+  // Handle other form types...
+}
+
+// Helper function to send JSON data to the server
+function sendJsonToServer(data, callback) {
+  console.log('Sending JSON data to server:', data);
+  
+  // Create a unique callback name
+  const callbackName = 'handleJsonResponse_' + new Date().getTime();
+  
+  // Create a global callback function
+  window[callbackName] = function(response) {
+    console.log('Server response:', response);
+    if (callback) {
+      callback(response);
+    }
+    // Clean up the global callback
+    delete window[callbackName];
+  };
+  
+  // Create a form to send the data
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = `https://script.google.com/macros/s/${scriptId}/exec`;
+  form.target = 'hidden-iframe';
+  
+  // Add the callback parameter
+  const callbackInput = document.createElement('input');
+  callbackInput.type = 'hidden';
+  callbackInput.name = 'callback';
+  callbackInput.value = callbackName;
+  form.appendChild(callbackInput);
+  
+  // Add the data parameter
+  const dataInput = document.createElement('input');
+  dataInput.type = 'hidden';
+  dataInput.name = 'data';
+  dataInput.value = JSON.stringify(data);
+  form.appendChild(dataInput);
+  
+  // Create a hidden iframe to receive the response
+  let iframe = document.getElementById('hidden-iframe');
+  if (!iframe) {
+    iframe = document.createElement('iframe');
+    iframe.id = 'hidden-iframe';
+    iframe.name = 'hidden-iframe';
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
+  }
+  
+  // Submit the form
+  document.body.appendChild(form);
+  form.submit();
+  
+  // Clean up the form
+  setTimeout(() => {
+    document.body.removeChild(form);
+  }, 500);
+  
+  // Set a timeout for the callback in case the server doesn't respond
+  setTimeout(() => {
+    if (window[callbackName]) {
+      console.error('Server did not respond within timeout');
+      if (callback) {
+        callback({ status: 'error', message: 'Server did not respond within timeout' });
+      }
+      delete window[callbackName];
+    }
+  }, 30000); // 30 second timeout
+}
+
+function populateCareerProgressionForm(data) {
+  console.log('Populating career progression form with data:', data);
+  const form = document.getElementById('careerProgressionForm');
+  if (!form) {
+    console.error('Career progression form not found');
+    return;
+  }
+
+  // Set record ID
+  const recordIdInput = form.querySelector('input[name="record_id"]');
+  if (recordIdInput) {
+    recordIdInput.value = data.record_id || `${currentAgent.agentName}_careerProgressionForm`;
+  }
+
+  // Set agent name
+  const agentNameInput = form.querySelector('input[name="agentName"]');
+  if (agentNameInput) {
+    agentNameInput.value = currentAgent.agentName;
+  }
+
+  // Populate checkboxes
+  const checkboxes = form.querySelectorAll('input[type="checkbox"]');
+  checkboxes.forEach(checkbox => {
+    const value = data[checkbox.name];
+    checkbox.checked = value === true || value === "true";
+  });
+
+  // Populate other fields if needed
+  // ...
+}

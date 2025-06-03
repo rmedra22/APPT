@@ -18,7 +18,8 @@ function checkOrCreateSheets() {
       'Expenses to Income Report': ['record_id', 'agent', 'item', 'amount', 'category', 'date', 'description'],
       'Potential Business Partners': ['record_id', 'agent', 'name', 'contact', 'email', 'status', 'notes'],
       'Potential Field Trainings': ['record_id', 'agent', 'client_name', 'date', 'type_of_training', 'outcome', 'notes'],
-      'Agents': ['agentName', 'password', 'role', 'lastUpdated', 'avatarUrl']
+      'Agents': ['agentName', 'password', 'role', 'lastUpdated', 'avatarUrl'],
+      'Career Progression': ['record_id', 'agent', 'step1_onboarding', 'licensing_class', 'personal_financial_review', 'money_wealth_life_insurance', 'step2_onboarding', 'business_partner_list', 'business_partner_1', 'business_partner_2', 'business_partner_3', 'pass_life_license_test', 'fingerprints_apply_license', 'intro_to_emd', 'step3_onboarding', 'field_training_list', 'master_ethor_script', 'set_10_field_trainings', 'field_training_1', 'field_training_2', 'field_training_3', 'field_training_4', 'field_training_5', 'field_training_6', 'field_training_7', 'field_training_8', 'field_training_9', 'field_training_10', 'unlock_access_to_courses', 'associate_promotion', 'direct_1', 'direct_2', 'direct_3', 'client_helped_1', 'client_helped_2', 'client_helped_3', 'senior_associate_promotion', 'business_partner_4', 'business_partner_5', 'business_partner_6', 'business_partner_7', 'business_partner_8', 'business_partner_9', 'business_partner_10', 'client_helped_4', 'client_helped_5', 'client_helped_6', 'client_helped_7', 'client_helped_8', 'client_helped_9', 'client_helped_10', 'net_license', 'make_first_1000', 'complete_10_training_appts', 'complete_kajabi_course', 'signed_off_by_elite_trainer', 'emd_sign_off', 'client_1st_appt', 'client_2nd_appt', 'phone_call_scripts', 'recruiting_interview', 'system', 'ethos', 'fixed_indexed_annuity', 'term_term_lb', 'iul_family_bank', 'million_dollar_baby', 'points_45000', 'month1_points', 'month2_points', 'month3_points', 'license_1', 'license_2', 'license_3', 'license_4', 'watch_10000', 'watch_20000', 'watch_30000', 'watch_40000', 'watch_50000', 'net_points_150000', 'net_points_240000', 'marketing_director', 'personal_income_200000', 'license_1_phase5', 'license_2_phase5', 'license_3_phase5', 'license_4_phase5', 'license_5', 'license_6', 'license_7', 'license_8', 'license_9', 'license_10', 'ring_60000', 'ring_70000', 'ring_80000', 'ring_90000', 'ring_100000']
     };
     
     // Create any missing sheets and add headers
@@ -71,30 +72,25 @@ function doGet(e) {
     const action = e.parameter.action;
     const callback = e.parameter.callback;
     
-    // Handle initialization request
-    if (e.parameter.init === 'true') {
+    // Handle initialization
+    if (e.parameter.init) {
       return initializeSheets(e);
     }
     
-    // Handle admin check request
-    if (action === 'checkAdmin') {
-      const result = checkAndFixAdminUser();
+    // Handle login
+    if (action === 'login') {
+      const result = handleLogin(e);
       return ContentService.createTextOutput(
         callback + '(' + JSON.stringify(result) + ');'
       ).setMimeType(ContentService.MimeType.JAVASCRIPT);
     }
     
-    // Handle login request
-    if (action === 'login') {
-      return handleLogin(e);
-    }
-    
-    // Handle form data retrieval
+    // Handle getting form data
     if (action === 'getFormData') {
       return getFormData(e);
     }
     
-    // Handle user management actions
+    // Handle getting all users (for admin)
     if (action === 'getUsers') {
       return getUsers(e);
     }
@@ -113,16 +109,20 @@ function doGet(e) {
       return handleSaveDataGet(e);
     }
     
+    // Handle bulk update of entries (for multi-entry forms)
+    if (action === 'bulkUpdateEntries') {
+      return handleBulkUpdateEntries(e);
+    }
+    
     // Default response
     return ContentService.createTextOutput(
       callback + '(' + JSON.stringify({ status: 'error', message: 'Unknown action' }) + ');'
     ).setMimeType(ContentService.MimeType.JAVASCRIPT);
     
   } catch (error) {
-    Logger.log('Error in doGet: %s', error.toString());
-    const callback = e.parameter.callback || 'callback';
+    Logger.log('Error in doGet: ' + error.toString());
     return ContentService.createTextOutput(
-      callback + '(' + JSON.stringify({ status: 'error', message: 'Server error: ' + error.toString() }) + ');'
+      e.parameter.callback + '(' + JSON.stringify({ status: 'error', message: 'Server error: ' + error.toString() }) + ');'
     ).setMimeType(ContentService.MimeType.JAVASCRIPT);
   }
 }
@@ -1028,5 +1028,146 @@ function getUsers(e) {
   } catch (error) {
     Logger.log('Error in getUsers: %s', error.toString());
     return jsonpResponse({ status: 'error', message: 'Error getting users: ' + error.toString() }, callback);
+  }
+}
+
+// Handle bulk update of entries (for multi-entry forms like Dreams List)
+function handleBulkUpdateEntries(e) {
+  try {
+    const callback = e.parameter.callback;
+    let payload;
+    
+    // Parse the data parameter
+    if (e.parameter.data) {
+      try {
+        payload = JSON.parse(e.parameter.data);
+        Logger.log('Parsed payload: ' + JSON.stringify(payload));
+      } catch (parseError) {
+        Logger.log('Error parsing data parameter: ' + parseError.toString());
+        return jsonpResponse({ 
+          status: 'error', 
+          message: 'Error parsing data: ' + parseError.toString() 
+        }, callback);
+      }
+    } else {
+      Logger.log('No data parameter found in request');
+      return jsonpResponse({ status: 'error', message: 'Missing data parameter' }, callback);
+    }
+    
+    const formId = payload.formId;
+    const agent = payload.agent;
+    const entries = payload.entries || [];
+    const sheetName = payload.sheetName || getSheetNameFromFormId(formId);
+    
+    Logger.log('Handling bulk update for ' + sheetName + ' with ' + entries.length + ' entries for agent ' + agent);
+    
+    if (!sheetName) {
+      return jsonpResponse({ status: 'error', message: 'Missing or invalid sheetName' }, callback);
+    }
+    
+    // Get the sheet
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(sheetName);
+    if (!sheet) {
+      Logger.log('Sheet not found: ' + sheetName);
+      return jsonpResponse({ status: 'error', message: 'Sheet not found: ' + sheetName }, callback);
+    }
+    
+    // Check and fix headers if needed
+    const expectedHeaders = ['record_id', 'agent', 'time_frame', 'dream', 'why'];
+    const lastColumn = sheet.getLastColumn();
+    let headers = [];
+    
+    if (lastColumn > 0) {
+      headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+      Logger.log('Existing headers: ' + JSON.stringify(headers));
+    }
+    
+    // If headers don't match expected, reset them
+    if (headers.length !== expectedHeaders.length || 
+        !expectedHeaders.every((header, index) => headers[index] === header)) {
+      Logger.log('Headers do not match expected. Resetting headers.');
+      sheet.getRange(1, 1, 1, expectedHeaders.length).setValues([expectedHeaders]);
+      headers = expectedHeaders;
+    }
+    
+    // Find column indices
+    const recordIdColIndex = headers.indexOf('record_id');
+    const agentColIndex = headers.indexOf('agent');
+    
+    if (recordIdColIndex === -1 || agentColIndex === -1) {
+      Logger.log('Critical columns missing after header check');
+      return jsonpResponse({ status: 'error', message: 'Critical columns missing in sheet' }, callback);
+    }
+    
+    // Process entries and update sheet
+    const existingData = sheet.getLastRow() > 1 ? 
+        sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues() : [];
+    
+    const updatedRows = [];
+    const newRows = [];
+    const recordIdsToKeep = new Set();
+    
+    entries.forEach(entry => {
+      const recordId = entry.record_id;
+      recordIdsToKeep.add(recordId); // Mark this record ID as one to keep
+      
+      const rowData = headers.map(header => {
+        const key = header.replace(/ /g, '_').toLowerCase();
+        if (key === 'record_id') return recordId;
+        if (key === 'agent') return agent; // Ensure agent name is saved with the entry
+        return entry[key] !== undefined ? entry[key] : '';
+      });
+      
+      let found = false;
+      for (let i = 0; i < existingData.length; i++) {
+        if (existingData[i][recordIdColIndex] === recordId) {
+          updatedRows.push({ rowIndex: i + 2, data: rowData }); // +2 for 1-based row index and header row
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        newRows.push(rowData);
+      }
+    });
+    
+    // Update existing rows
+    updatedRows.forEach(row => {
+      sheet.getRange(row.rowIndex, 1, 1, row.data.length).setValues([row.data]);
+    });
+    
+    // Add new rows
+    if (newRows.length > 0) {
+      sheet.getRange(sheet.getLastRow() + 1, 1, newRows.length, headers.length).setValues(newRows);
+    }
+    
+    // Delete rows for this agent that are not in the current set
+    const rowsToDelete = [];
+    for (let i = 0; i < existingData.length; i++) {
+      const rowAgentName = existingData[i][agentColIndex];
+      const rowRecordId = existingData[i][recordIdColIndex];
+      
+      if (rowAgentName === agent && !recordIdsToKeep.has(rowRecordId)) {
+        rowsToDelete.push(i + 2); // +2 for 1-based row index and header row
+      }
+    }
+    
+    // Delete rows in reverse order to avoid shifting issues
+    rowsToDelete.sort((a, b) => b - a).forEach(rowIndex => {
+      sheet.deleteRow(rowIndex);
+    });
+    
+    return jsonpResponse({ 
+      status: 'success', 
+      message: `Updated ${updatedRows.length} rows, added ${newRows.length} rows, deleted ${rowsToDelete.length} rows` 
+    }, callback);
+    
+  } catch (error) {
+    Logger.log('Error in handleBulkUpdateEntries: ' + error.toString());
+    return jsonpResponse({ 
+      status: 'error', 
+      message: 'Server error: ' + error.toString() 
+    }, e.parameter.callback);
   }
 }
