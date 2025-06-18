@@ -449,6 +449,39 @@
         color: #0353A4;
     }
     
+    /* Dreams List form controls */
+    .data-table .form-control {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.25rem;
+        font-size: 0.875rem;
+        color: #374151;
+        background-color: #ffffff;
+    }
+    
+    .data-table .form-control:focus {
+        border-color: #0466C8;
+        box-shadow: 0 0 0 2px rgba(4, 102, 200, 0.2);
+        outline: none;
+    }
+    
+    .add-entry-btn {
+        background-color: #10b981;
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.375rem;
+        font-weight: 600;
+        cursor: pointer;
+        margin-bottom: 1.5rem;
+        transition: background-color 0.2s ease;
+    }
+    
+    .add-entry-btn:hover {
+        background-color: #059669;
+    }
+    
     /* User Management specific styling - Now properly positioned */
     
     #user-management-form .form-container {
@@ -736,80 +769,9 @@
       </header>
 
       <div class="flex-grow p-6">
-        <div id="dashboardPageContent" class="page-content">
-          <h1 class="page-title text-gradient">✅ Enhanced Dashboard</h1>
-          <p class="page-description">Welcome to your improved WFG dashboard with all issues fixed!</p>
-
-          <div class="stat-grid">
-            <div class="stat-card">
-                <i class="fas fa-users icon"></i>
-                <div class="value" id="totalClients">0</div>
-                <div class="label">Total Clients</div>
-            </div>
-            <div class="stat-card">
-                <i class="fas fa-dollar-sign icon"></i>
-                <div class="value" id="totalIncome">₱0</div>
-                <div class="label">Total Income (This Month)</div>
-            </div>
-            <div class="stat-card">
-                <i class="fas fa-calendar-check icon"></i>
-                <div class="value" id="completedTrainings">0</div>
-                <div class="label">Completed Trainings</div>
-            </div>
-            <div class="stat-card">
-                <i class="fas fa-briefcase icon"></i>
-                <div class="value" id="newPartners">0</div>
-                <div class="label">New Business Partners</div>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-            <div class="card">
-              <h3 class="card-title">
-                <i class="fas fa-check-circle mr-2 text-green-600"></i>
-                Issues Fixed
-              </h3>
-              <div class="card-content">
-                <ul class="space-y-2">
-                  <li class="flex items-center">
-                    <i class="fas fa-check text-green-500 mr-2"></i>
-                    <span>User name displays correctly after login</span>
-                  </li>
-                  <li class="flex items-center">
-                    <i class="fas fa-check text-green-500 mr-2"></i>
-                    <span>Forms load existing data from server</span>
-                  </li>
-                  <li class="flex items-center">
-                    <i class="fas fa-check text-green-500 mr-2"></i>
-                    <span>No more "Cannot load personal details" error</span>
-                  </li>
-                  <li class="flex items-center">
-                    <i class="fas fa-check text-green-500 mr-2"></i>
-                    <span>Enhanced error handling and feedback</span>
-                  </li>
-                </ul>
-              </div>
-            </div>
-
-            <div class="card">
-              <h3 class="card-title">
-                <i class="fas fa-chart-line mr-2 text-blue-600"></i>
-                Recent Activities
-              </h3>
-              <div class="card-content">
-                <ul class="space-y-2" id="recentActivities">
-                  <li class="flex items-center">
-                    <i class="fas fa-info-circle text-blue-500 mr-2"></i>
-                    <span>System enhanced with all bug fixes</span>
-                  </li>
-                  <li class="flex items-center">
-                    <i class="fas fa-user text-green-500 mr-2"></i>
-                    <span>Ready to load your personal data</span>
-                  </li>
-              </ul>
-              <p class="text-sm text-gray-500 mt-2">More coming soon...</p>
-            </div>
-          </div>
+        <div id="dashboardPageContent" class="page-content hidden">
+          <h1 class="page-title">Welcome to WFG Data Entry System</h1>
+          <p class="page-description">Please use the navigation menu to access the forms and manage your data.</p>
         </div>
 
         <div id="personal-details-form" class="page-content hidden">
@@ -1445,27 +1407,35 @@
                 <h2 class="page-title">Dreams List</h2>
                 <p class="page-description">Add and manage your personal dreams and goals.</p>
                 
-                <button id="addDreamEntryBtn" class="add-entry-btn">Add New Dream</button>
+                <form id="dreamsForm">
+                    <button type="button" id="addDreamEntryBtn" class="add-entry-btn">Add New Dream</button>
 
-                <div class="data-table-container">
-                    <table id="dreamsTable" class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Time Frame</th>
-                                <th>Dream</th>
-                                <th>Why</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            </tbody>
-                    </table>
-                </div>
+                    <div class="data-table-container">
+                        <table id="dreamsTable" class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Time Frame</th>
+                                    <th>Dream</th>
+                                    <th>Why</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                </tbody>
+                        </table>
+                    </div>
 
-                <div class="form-actions">
-                  <p id="dreamsFormSaveStatus" class="text-sm text-gray-500 mr-auto flex items-center"></p>
-                  <button type="submit" class="btn btn-primary" id="saveDreamsBtn">Save All Dreams</button>
-                </div>
+                    <!-- Hidden fields for compatibility with external script -->
+                    <input type="hidden" id="dreamsRecordId" name="record_id">
+                    <input type="hidden" id="dreamsAgentName" name="agentName">
+                    
+                    <!-- Dreams data will be added dynamically as individual fields -->
+
+                    <div class="form-actions">
+                      <p id="dreamsFormSaveStatus" class="text-sm text-gray-500 mr-auto flex items-center"></p>
+                      <button type="submit" class="btn btn-primary" id="saveDreamsBtn">Save All Dreams</button>
+                    </div>
+                </form>
             </div>
         </div>
 
@@ -1860,6 +1830,255 @@
   <script src="script_enhanced.js"></script>
   
   <script>
+    // Dreams List functionality - GLOBAL SCOPE
+    let dreamEntries = [];
+    let dreamEntryCounter = 0;
+
+    function addDreamEntry() {
+      dreamEntryCounter++;
+      const newEntry = {
+        id: dreamEntryCounter,
+        timeFrame: '',
+        dream: '',
+        why: ''
+      };
+      dreamEntries.push(newEntry);
+      renderDreamEntry(newEntry);
+    }
+
+    function renderDreamEntry(entry) {
+      const tbody = document.querySelector('#dreamsTable tbody');
+      if (!tbody) {
+        console.error('Dreams table tbody not found');
+        return;
+      }
+      
+      const row = document.createElement('tr');
+      row.setAttribute('data-entry-id', entry.id);
+      
+      row.innerHTML = `
+        <td><input type="text" class="form-control dream-time-frame" value="${entry.timeFrame}" placeholder="e.g., 1 year, 5 years"></td>
+        <td><input type="text" class="form-control dream-description" value="${entry.dream}" placeholder="Describe your dream"></td>
+        <td><input type="text" class="form-control dream-why" value="${entry.why}" placeholder="Why is this important?"></td>
+        <td class="table-actions">
+          <button type="button" onclick="removeDreamEntry(${entry.id})" title="Delete">
+            <i class="fas fa-trash"></i>
+          </button>
+        </td>
+      `;
+      
+      tbody.appendChild(row);
+      
+      // Add event listeners for auto-save
+      row.querySelectorAll('input').forEach(input => {
+        input.addEventListener('input', function() {
+          const entryId = parseInt(row.getAttribute('data-entry-id'));
+          const entryIndex = dreamEntries.findIndex(e => e.id === entryId);
+          if (entryIndex !== -1) {
+            dreamEntries[entryIndex].timeFrame = row.querySelector('.dream-time-frame').value;
+            dreamEntries[entryIndex].dream = row.querySelector('.dream-description').value;
+            dreamEntries[entryIndex].why = row.querySelector('.dream-why').value;
+            
+            // Update the form data structure
+            updateDreamsFormData();
+            
+            // Auto-save after a short delay
+            clearTimeout(window.dreamAutoSaveTimeout);
+            window.dreamAutoSaveTimeout = setTimeout(() => {
+              saveDreams();
+            }, 1000);
+          }
+        });
+      });
+    }
+
+    function updateDreamsFormData() {
+      // Remove old hidden inputs
+      document.querySelectorAll('#dreamsForm input[name^="dreams"]').forEach(input => {
+        if (input.type === 'hidden') {
+          input.remove();
+        }
+      });
+      
+      // Create new hidden inputs for form submission
+      const form = document.getElementById('dreamsForm');
+      if (!form) return;
+      
+      // Instead of nested arrays, create a JSON string of all dreams
+      // and individual fields for the first dream (for compatibility)
+      if (dreamEntries.length > 0) {
+        // Create JSON data for all dreams
+        const dreamsJsonInput = document.createElement('input');
+        dreamsJsonInput.type = 'hidden';
+        dreamsJsonInput.name = 'dreams_data';
+        dreamsJsonInput.value = JSON.stringify(dreamEntries);
+        form.appendChild(dreamsJsonInput);
+        
+        // Also create individual fields for the first dream (for Google Sheet columns)
+        const firstDream = dreamEntries[0];
+        if (firstDream) {
+          const timeFrameInput = document.createElement('input');
+          timeFrameInput.type = 'hidden';
+          timeFrameInput.name = 'time_frame';
+          timeFrameInput.value = firstDream.timeFrame || '';
+          form.appendChild(timeFrameInput);
+          
+          const dreamInput = document.createElement('input');
+          dreamInput.type = 'hidden';
+          dreamInput.name = 'dream';
+          dreamInput.value = firstDream.dream || '';
+          form.appendChild(dreamInput);
+          
+          const whyInput = document.createElement('input');
+          whyInput.type = 'hidden';
+          whyInput.name = 'why';
+          whyInput.value = firstDream.why || '';
+          form.appendChild(whyInput);
+        }
+        
+        // Add count of total dreams
+        const countInput = document.createElement('input');
+        countInput.type = 'hidden';
+        countInput.name = 'dreams_count';
+        countInput.value = dreamEntries.length.toString();
+        form.appendChild(countInput);
+      }
+    }
+
+    function removeDreamEntry(entryId) {
+      // Remove from array
+      dreamEntries = dreamEntries.filter(entry => entry.id !== entryId);
+      
+      // Remove from DOM
+      const row = document.querySelector(`tr[data-entry-id="${entryId}"]`);
+      if (row) {
+        row.remove();
+      }
+      
+      // Update form data
+      updateDreamsFormData();
+    }
+
+    async function saveDreams(event) {
+      if (event) {
+        event.preventDefault();
+      }
+      
+      // Update entries from current form values
+      document.querySelectorAll('#dreamsTable tbody tr').forEach(row => {
+        const entryId = parseInt(row.getAttribute('data-entry-id'));
+        const entryIndex = dreamEntries.findIndex(e => e.id === entryId);
+        if (entryIndex !== -1) {
+          dreamEntries[entryIndex].timeFrame = row.querySelector('.dream-time-frame').value;
+          dreamEntries[entryIndex].dream = row.querySelector('.dream-description').value;
+          dreamEntries[entryIndex].why = row.querySelector('.dream-why').value;
+        }
+      });
+
+      // Update form data with current values
+      updateDreamsFormData();
+
+      console.log('Saving dreams:', dreamEntries);
+      
+      // Show success message
+      const statusElement = document.getElementById('dreamsFormSaveStatus');
+      if (statusElement) {
+        statusElement.innerHTML = '<i class="fas fa-spinner fa-spin text-blue-500 mr-2"></i>Saving dreams...';
+      }
+
+      // Debug: Check what functions are available
+      console.log('Available functions:', {
+        saveFormData: typeof window.saveFormData,
+        currentAgent: window.currentAgent,
+        toastManager: typeof window.toastManager
+      });
+
+      // Check if user is logged in
+      if (!window.currentAgent || !window.currentAgent.agentName) {
+        console.log('No current agent - user might not be logged in');
+        if (statusElement) {
+          statusElement.innerHTML = '<i class="fas fa-exclamation-triangle text-red-500 mr-2"></i>Please login first!';
+          setTimeout(() => {
+            statusElement.innerHTML = '';
+          }, 5000);
+        }
+        return;
+      }
+
+      // Try to use the external script's save mechanism if available
+      if (typeof window.saveFormData === 'function') {
+        try {
+          console.log('Using external save function for user:', window.currentAgent.agentName);
+          
+          // Debug: Check form data before saving
+          const formData = new FormData(document.getElementById('dreamsForm'));
+          console.log('Form data being saved:');
+          for (let [key, value] of formData.entries()) {
+            console.log(`  ${key}: ${value}`);
+          }
+          
+          // Call the external save function
+          await window.saveFormData('dreamsForm');
+          
+          console.log('Save function completed');
+          
+        } catch (error) {
+          console.error('External save function error:', error);
+          if (statusElement) {
+            statusElement.innerHTML = '<i class="fas fa-exclamation-triangle text-red-500 mr-2"></i>Error saving: ' + error.message;
+            setTimeout(() => {
+              statusElement.innerHTML = '';
+            }, 5000);
+          }
+        }
+      } else {
+        console.log('External save function not available - script might not be loaded');
+        if (statusElement) {
+          statusElement.innerHTML = '<i class="fas fa-exclamation-triangle text-yellow-500 mr-2"></i>Save system not ready!';
+          setTimeout(() => {
+            statusElement.innerHTML = '';
+          }, 5000);
+        }
+      }
+    }
+
+    // Debug function to test dreams form
+    window.testDreamsForm = function() {
+      console.log('=== Dreams Form Debug Info ===');
+      console.log('Dreams entries:', dreamEntries);
+      console.log('Current agent:', window.currentAgent);
+      console.log('Save function available:', typeof window.saveFormData);
+      console.log('Toast manager available:', typeof window.toastManager);
+      
+      const form = document.getElementById('dreamsForm');
+      if (form) {
+        // First update the form data to see the latest values
+        updateDreamsFormData();
+        
+        const formData = new FormData(form);
+        console.log('Current form data being sent to server:');
+        for (let [key, value] of formData.entries()) {
+          console.log(`  ${key}: ${value}`);
+        }
+        
+        console.log('Dreams entries (raw data):');
+        dreamEntries.forEach((entry, index) => {
+          console.log(`  Dream ${index + 1}:`, entry);
+        });
+      } else {
+        console.log('Dreams form not found!');
+      }
+      
+      // Show in UI
+      const statusElement = document.getElementById('dreamsFormSaveStatus');
+      if (statusElement) {
+        statusElement.innerHTML = '<i class="fas fa-info-circle text-blue-500 mr-2"></i>Debug info in console';
+        setTimeout(() => {
+          statusElement.innerHTML = '';
+        }, 3000);
+      }
+    };
+
     // Enhanced functionality for the main page
     document.addEventListener('DOMContentLoaded', function() {
       console.log('🚀 WFG Enhanced System - Main Page Ready!');
@@ -2017,6 +2236,216 @@
       }
     };
     
+    // Add menu navigation functionality
+    function showPage(pageId) {
+      // Hide all page content
+      document.querySelectorAll('.page-content').forEach(page => {
+        page.classList.add('hidden');
+      });
+      
+      // Show the selected page
+      const targetPage = document.getElementById(pageId + 'PageContent') || document.getElementById(pageId + '-form');
+      if (targetPage) {
+        targetPage.classList.remove('hidden');
+      }
+      
+      // Update active menu item
+      document.querySelectorAll('.sidebar-menu a').forEach(link => {
+        link.classList.remove('active');
+      });
+      document.querySelector(`[data-page="${pageId}"]`)?.classList.add('active');
+      
+      // Load dreams data when showing Dreams List page
+      if (pageId === 'dreams-list') {
+        console.log('Dreams List page shown, loading data...');
+        setTimeout(() => {
+          loadDreamsData();
+        }, 500); // Small delay to ensure page is fully shown
+      }
+    }
+    
+    // Add click event listeners to menu items
+    document.querySelectorAll('.sidebar-menu a[data-page]').forEach(link => {
+      link.addEventListener('click', function(e) {
+        e.preventDefault();
+        const pageId = this.getAttribute('data-page');
+        showPage(pageId);
+      });
+    });
+    
+    // Show dashboard by default on page load
+    showPage('dashboard');
+
+    // Set up Dreams List event listeners
+    document.getElementById('addDreamEntryBtn')?.addEventListener('click', addDreamEntry);
+    document.getElementById('dreamsForm')?.addEventListener('submit', saveDreams);
+    
+    // Wait for external script to load before setting up dreams
+    function waitForExternalScript() {
+      if (typeof window.saveFormData === 'function' && typeof window.currentAgent !== 'undefined') {
+        console.log('External script loaded successfully');
+        // Load dreams data if we're on the dreams page
+        if (currentPage === 'dreams-list-form' || document.getElementById('dreams-list-form')?.style.display !== 'none') {
+          loadDreamsData();
+        }
+      } else {
+        console.log('Waiting for external script to load...');
+        setTimeout(waitForExternalScript, 500);
+      }
+    }
+    
+    // Function to load dreams data
+    function loadDreamsData() {
+      if (typeof window.loadFormData === 'function') {
+        console.log('Loading dreams data...');
+        window.loadFormData('dreamsForm');
+      } else {
+        console.log('Load function not available yet');
+      }
+    }
+    
+    // Custom function to handle dreams data from external script
+    window.populateDreamsForm = function(data) {
+      console.log('Populating dreams form with data:', data);
+      
+      // Clear existing entries
+      dreamEntries = [];
+      dreamEntryCounter = 0;
+      const tbody = document.querySelector('#dreamsTable tbody');
+      if (tbody) {
+        tbody.innerHTML = '';
+      }
+      
+      // Handle the actual data format: check if data has entries array
+      let actualData = data;
+      if (data.entries && Array.isArray(data.entries) && data.entries.length > 0) {
+        console.log('Data found in entries array, using first entry');
+        actualData = data.entries[0];
+      }
+      
+      console.log('Processing data:', actualData);
+      
+      // Try to load from dreams_data (JSON format) first
+      if (actualData.dreams_data) {
+        try {
+          const parsedDreams = JSON.parse(actualData.dreams_data);
+          console.log('Loading from dreams_data JSON:', parsedDreams);
+          
+          parsedDreams.forEach(dreamData => {
+            const entry = {
+              id: dreamData.id || (dreamEntryCounter + 1),
+              timeFrame: dreamData.timeFrame || '',
+              dream: dreamData.dream || '',
+              why: dreamData.why || ''
+            };
+            dreamEntries.push(entry);
+            dreamEntryCounter = Math.max(dreamEntryCounter, entry.id);
+            renderDreamEntry(entry);
+          });
+          
+        } catch (error) {
+          console.log('Failed to parse dreams_data JSON:', error);
+        }
+      }
+      
+      // If no JSON data or parsing failed, try to load from individual fields
+      if (dreamEntries.length === 0 && (actualData.time_frame || actualData.dream || actualData.why)) {
+        console.log('Loading from individual fields:', {
+          time_frame: actualData.time_frame,
+          dream: actualData.dream,
+          why: actualData.why
+        });
+        
+        const entry = {
+          id: 1,
+          timeFrame: actualData.time_frame ? actualData.time_frame.toString() : '',
+          dream: actualData.dream ? actualData.dream.toString() : '',
+          why: actualData.why ? actualData.why.toString() : ''
+        };
+        
+        // Only add if there's actual content
+        if (entry.timeFrame || entry.dream || entry.why) {
+          dreamEntries.push(entry);
+          dreamEntryCounter = 1;
+          renderDreamEntry(entry);
+          console.log('Created dream entry:', entry);
+        }
+      }
+      
+      // Fallback: try to extract from nested format (for backward compatibility)
+      if (dreamEntries.length === 0) {
+        console.log('Trying nested format extraction');
+        const dreamsData = {};
+        Object.keys(actualData).forEach(key => {
+          if (key.startsWith('dreams[')) {
+            // Parse dreams[1][time_frame] format
+            const match = key.match(/dreams\[(\d+)\]\[(\w+)\]/);
+            if (match) {
+              const entryId = parseInt(match[1]);
+              const field = match[2];
+              if (!dreamsData[entryId]) {
+                dreamsData[entryId] = { id: entryId };
+              }
+              dreamsData[entryId][field] = actualData[key];
+            }
+          }
+        });
+        
+        // Convert to dream entries and render
+        Object.values(dreamsData).forEach(dreamData => {
+          if (dreamData.time_frame || dreamData.dream || dreamData.why) {
+            const entry = {
+              id: dreamData.id,
+              timeFrame: dreamData.time_frame || '',
+              dream: dreamData.dream || '',
+              why: dreamData.why || ''
+            };
+            dreamEntries.push(entry);
+            dreamEntryCounter = Math.max(dreamEntryCounter, entry.id);
+            renderDreamEntry(entry);
+          }
+        });
+      }
+      
+      console.log('Dreams loaded successfully:', dreamEntries);
+      
+      // Update the form data to match loaded entries
+      updateDreamsFormData();
+    };
+
+    // Override the external script's populateForm function to handle dreams specially
+    const originalPopulateForm = window.populateForm;
+    window.populateForm = function(formId, data) {
+      if (formId === 'dreamsForm') {
+        // Handle dreams form specially
+        console.log('Dreams form population intercepted');
+        
+        // First, handle basic fields (record_id, agentName)
+        const form = document.getElementById(formId);
+        if (form) {
+          const recordIdInput = form.querySelector('input[name="record_id"]');
+          if (recordIdInput && data.record_id) {
+            recordIdInput.value = data.record_id;
+          }
+          
+          const agentNameInput = form.querySelector('input[name="agentName"]');
+          if (agentNameInput && data.agentName) {
+            agentNameInput.value = data.agentName;
+          }
+        }
+        
+        // Then handle dreams data
+        window.populateDreamsForm(data);
+        
+      } else if (originalPopulateForm) {
+        // Use original function for other forms
+        originalPopulateForm(formId, data);
+      }
+    };
+
+    // Load dreams when page loads
+    setTimeout(waitForExternalScript, 1000);
+
     // Auto-calculate net income for expenses form
     const totalIncomeInput = document.getElementById('totalIncome');
     const totalExpensesInput = document.getElementById('totalExpenses');
