@@ -1506,7 +1506,7 @@
                 <h2 class="page-title">Potential Field Trainings</h2>
                 <p class="page-description">Track and manage potential field training opportunities.</p>
 
-                <form id="clientsForm" onsubmit="saveClients(event)">
+                <form id="clientsForm">
                     <button type="button" id="addTrainingEntryBtn" class="add-entry-btn">Add New Training</button>
 
                     <div class="data-table-container">
@@ -2569,7 +2569,7 @@
     let expenseEntries = [];
     let expenseEntryCounter = 0;
 
-    function addExpenseEntry() {
+    window.addExpenseEntry = function addExpenseEntry() {
       expenseEntryCounter++;
       const entry = {
         id: expenseEntryCounter,
@@ -2628,14 +2628,18 @@
             
             clearTimeout(window.expenseAutoSaveTimeout);
             window.expenseAutoSaveTimeout = setTimeout(() => {
-              saveExpenses();
+              if (window.currentAgent && window.currentAgent.agentName) {
+                window.saveExpenses();
+              } else {
+                console.log('Auto-save skipped: No user logged in');
+              }
             }, 1000);
           }
         });
       });
     }
 
-    function removeExpenseEntry(entryId) {
+    window.removeExpenseEntry = function removeExpenseEntry(entryId) {
       expenseEntries = expenseEntries.filter(entry => entry.id !== entryId);
       const row = document.querySelector(`#expensesTable tr[data-entry-id="${entryId}"]`);
       if (row) {
@@ -2702,7 +2706,7 @@
       }
     }
 
-    async function saveExpenses(event) {
+    window.saveExpenses = async function saveExpenses(event) {
       if (event) {
         event.preventDefault();
       }
@@ -2727,6 +2731,15 @@
       }
 
       if (typeof window.saveFormData === 'function') {
+        if (!window.currentAgent || !window.currentAgent.agentName) {
+          console.error('Cannot save expenses: No current agent logged in');
+          if (statusElement) {
+            statusElement.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i>Please log in first';
+            statusElement.className = 'text-sm text-red-500 mr-auto flex items-center';
+          }
+          return;
+        }
+        
         const recordId = window.currentAgent.agentName + '_expensesForm';
         const recordIdElement = document.getElementById('expensesRecordId');
         const agentNameElement = document.getElementById('expensesAgentName');
@@ -2800,8 +2813,8 @@
       updateExpensesFormData();
     };
 
-    document.getElementById('addExpenseEntryBtn')?.addEventListener('click', addExpenseEntry);
-    document.getElementById('expensesForm')?.addEventListener('submit', saveExpenses);
+    document.getElementById('addExpenseEntryBtn')?.addEventListener('click', window.addExpenseEntry);
+    document.getElementById('expensesForm')?.addEventListener('submit', window.saveExpenses);
 
     // ============================================================================
     // POTENTIAL BUSINESS PARTNERS FUNCTIONALITY
@@ -2810,7 +2823,7 @@
     let partnerEntries = [];
     let partnerEntryCounter = 0;
 
-    function addPartnerEntry() {
+    window.addPartnerEntry = function addPartnerEntry() {
       partnerEntryCounter++;
       const entry = {
         id: partnerEntryCounter,
@@ -2869,14 +2882,18 @@
             
             clearTimeout(window.partnerAutoSaveTimeout);
             window.partnerAutoSaveTimeout = setTimeout(() => {
-              savePartners();
+              if (window.currentAgent && window.currentAgent.agentName) {
+                window.savePartners();
+              } else {
+                console.log('Auto-save skipped: No user logged in');
+              }
             }, 1000);
           }
         });
       });
     }
 
-    function removePartnerEntry(entryId) {
+    window.removePartnerEntry = function removePartnerEntry(entryId) {
       partnerEntries = partnerEntries.filter(entry => entry.id !== entryId);
       const row = document.querySelector(`#partnersTable tr[data-entry-id="${entryId}"]`);
       if (row) {
@@ -2943,7 +2960,7 @@
       }
     }
 
-    async function savePartners(event) {
+    window.savePartners = async function savePartners(event) {
       if (event) {
         event.preventDefault();
       }
@@ -2968,6 +2985,15 @@
       }
 
       if (typeof window.saveFormData === 'function') {
+        if (!window.currentAgent || !window.currentAgent.agentName) {
+          console.error('Cannot save partners: No current agent logged in');
+          if (statusElement) {
+            statusElement.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i>Please log in first';
+            statusElement.className = 'text-sm text-red-500 mr-auto flex items-center';
+          }
+          return;
+        }
+        
         const recordId = window.currentAgent.agentName + '_partnersForm';
         const recordIdElement = document.getElementById('partnersRecordId');
         const agentNameElement = document.getElementById('partnersAgentName');
@@ -3041,8 +3067,8 @@
       updatePartnersFormData();
     };
 
-    document.getElementById('addPartnerEntryBtn')?.addEventListener('click', addPartnerEntry);
-    document.getElementById('partnersForm')?.addEventListener('submit', savePartners);
+    document.getElementById('addPartnerEntryBtn')?.addEventListener('click', window.addPartnerEntry);
+    document.getElementById('partnersForm')?.addEventListener('submit', window.savePartners);
 
     // ============================================================================
     // POTENTIAL FIELD TRAININGS FUNCTIONALITY
@@ -3051,7 +3077,7 @@
     let clientEntries = [];
     let clientEntryCounter = 0;
 
-    function addClientEntry() {
+    window.addClientEntry = function addClientEntry() {
       clientEntryCounter++;
       const entry = {
         id: clientEntryCounter,
@@ -3116,14 +3142,18 @@
             
             clearTimeout(window.clientAutoSaveTimeout);
             window.clientAutoSaveTimeout = setTimeout(() => {
-              saveClients();
+              if (window.currentAgent && window.currentAgent.agentName) {
+                window.saveClients();
+              } else {
+                console.log('Auto-save skipped: No user logged in');
+              }
             }, 1000);
           }
         });
       });
     }
 
-    function removeClientEntry(entryId) {
+    window.removeClientEntry = function removeClientEntry(entryId) {
       clientEntries = clientEntries.filter(entry => entry.id !== entryId);
       const row = document.querySelector(`#trainingsTable tr[data-entry-id="${entryId}"]`);
       if (row) {
@@ -3190,7 +3220,7 @@
       }
     }
 
-    async function saveClients(event) {
+    window.saveClients = async function saveClients(event) {
       if (event) {
         event.preventDefault();
       }
@@ -3215,6 +3245,15 @@
       }
 
       if (typeof window.saveFormData === 'function') {
+        if (!window.currentAgent || !window.currentAgent.agentName) {
+          console.error('Cannot save clients: No current agent logged in');
+          if (statusElement) {
+            statusElement.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i>Please log in first';
+            statusElement.className = 'text-sm text-red-500 mr-auto flex items-center';
+          }
+          return;
+        }
+        
         const recordId = window.currentAgent.agentName + '_clientsForm';
         const recordIdElement = document.getElementById('clientsRecordId');
         const agentNameElement = document.getElementById('clientsAgentName');
@@ -3288,8 +3327,8 @@
       updateClientsFormData();
     };
 
-    document.getElementById('addTrainingEntryBtn')?.addEventListener('click', addClientEntry);
-    document.getElementById('clientsForm')?.addEventListener('submit', saveClients);
+    document.getElementById('addTrainingEntryBtn')?.addEventListener('click', window.addClientEntry);
+    document.getElementById('clientsForm')?.addEventListener('submit', window.saveClients);
 
     // Auto-calculate net income for expenses form
     const totalIncomeInput = document.getElementById('totalIncome');
