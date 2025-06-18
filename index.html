@@ -1506,29 +1506,37 @@
                 <h2 class="page-title">Potential Field Trainings</h2>
                 <p class="page-description">Track and manage potential field training opportunities.</p>
 
-                <button id="addClientEntryBtn" class="add-entry-btn">Add New Training</button>
+                <form id="clientsForm" onsubmit="saveClients(event)">
+                    <button type="button" id="addTrainingEntryBtn" class="add-entry-btn">Add New Training</button>
 
-                <div class="data-table-container">
-                    <table id="clientsTable" class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Client Name</th>
-                                <th>Date</th>
-                                <th>Type of Training</th>
-                                <th>Outcome</th>
-                                <th>Notes</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            </tbody>
-                    </table>
-                </div>
+                    <div class="data-table-container">
+                        <table id="trainingsTable" class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Client Name</th>
+                                    <th>Date</th>
+                                    <th>Type of Training</th>
+                                    <th>Outcome</th>
+                                    <th>Notes</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                </tbody>
+                        </table>
+                    </div>
 
-                <div class="form-actions">
-                  <p id="clientsFormSaveStatus" class="text-sm text-gray-500 mr-auto flex items-center"></p>
-                  <button type="submit" class="btn btn-primary" id="saveClientsBtn">Save All Trainings</button>
-                </div>
+                    <!-- Hidden fields for compatibility with external script -->
+                    <input type="hidden" id="clientsRecordId" name="record_id">
+                    <input type="hidden" id="clientsAgentName" name="agentName">
+                    
+                    <!-- Clients data will be added dynamically as individual fields -->
+
+                    <div class="form-actions">
+                      <p id="clientsFormSaveStatus" class="text-sm text-gray-500 mr-auto flex items-center"></p>
+                      <button type="submit" class="btn btn-primary" id="saveClientsBtn">Save All Trainings</button>
+                    </div>
+                </form>
             </div>
         </div>
 
@@ -2261,6 +2269,21 @@
         setTimeout(() => {
           loadDreamsData();
         }, 500); // Small delay to ensure page is fully shown
+      } else if (pageId === 'expenses-to-income-report') {
+        console.log('Expenses Report page shown, loading data...');
+        setTimeout(() => {
+          loadExpensesData();
+        }, 500);
+      } else if (pageId === 'potential-business-partners') {
+        console.log('Business Partners page shown, loading data...');
+        setTimeout(() => {
+          loadPartnersData();
+        }, 500);
+      } else if (pageId === 'potential-field-trainings') {
+        console.log('Field Trainings page shown, loading data...');
+        setTimeout(() => {
+          loadTrainingsData();
+        }, 500);
       }
     }
     
@@ -2284,9 +2307,15 @@
     function waitForExternalScript() {
       if (typeof window.saveFormData === 'function' && typeof window.currentAgent !== 'undefined') {
         console.log('External script loaded successfully');
-        // Load dreams data if we're on the dreams page
+        // Load data based on current page
         if (currentPage === 'dreams-list-form' || document.getElementById('dreams-list-form')?.style.display !== 'none') {
           loadDreamsData();
+        } else if (currentPage === 'expenses-to-income-report-form' || document.getElementById('expenses-to-income-report-form')?.style.display !== 'none') {
+          loadExpensesData();
+        } else if (currentPage === 'potential-business-partners-form' || document.getElementById('potential-business-partners-form')?.style.display !== 'none') {
+          loadPartnersData();
+        } else if (currentPage === 'potential-field-trainings-form' || document.getElementById('potential-field-trainings-form')?.style.display !== 'none') {
+          loadTrainingsData();
         }
       } else {
         console.log('Waiting for external script to load...');
@@ -2299,6 +2328,36 @@
       if (typeof window.loadFormData === 'function') {
         console.log('Loading dreams data...');
         window.loadFormData('dreamsForm');
+      } else {
+        console.log('Load function not available yet');
+      }
+    }
+    
+    // Function to load expenses data
+    function loadExpensesData() {
+      if (typeof window.loadFormData === 'function') {
+        console.log('Loading expenses data...');
+        window.loadFormData('expensesForm');
+      } else {
+        console.log('Load function not available yet');
+      }
+    }
+    
+    // Function to load partners data
+    function loadPartnersData() {
+      if (typeof window.loadFormData === 'function') {
+        console.log('Loading partners data...');
+        window.loadFormData('partnersForm');
+      } else {
+        console.log('Load function not available yet');
+      }
+    }
+    
+    // Function to load trainings data
+    function loadTrainingsData() {
+      if (typeof window.loadFormData === 'function') {
+        console.log('Loading trainings data...');
+        window.loadFormData('trainingsForm');
       } else {
         console.log('Load function not available yet');
       }
@@ -2413,7 +2472,7 @@
       updateDreamsFormData();
     };
 
-    // Override the external script's populateForm function to handle dreams specially
+    // Override the external script's populateForm function to handle special forms
     const originalPopulateForm = window.populateForm;
     window.populateForm = function(formId, data) {
       if (formId === 'dreamsForm') {
@@ -2437,6 +2496,63 @@
         // Then handle dreams data
         window.populateDreamsForm(data);
         
+      } else if (formId === 'expensesForm') {
+        // Handle expenses form specially
+        console.log('Expenses form population intercepted');
+        
+        const form = document.getElementById(formId);
+        if (form) {
+          const recordIdInput = form.querySelector('input[name="record_id"]');
+          if (recordIdInput && data.record_id) {
+            recordIdInput.value = data.record_id;
+          }
+          
+          const agentNameInput = form.querySelector('input[name="agentName"]');
+          if (agentNameInput && data.agentName) {
+            agentNameInput.value = data.agentName;
+          }
+        }
+        
+        window.populateExpensesForm(data);
+        
+      } else if (formId === 'partnersForm') {
+        // Handle partners form specially
+        console.log('Partners form population intercepted');
+        
+        const form = document.getElementById(formId);
+        if (form) {
+          const recordIdInput = form.querySelector('input[name="record_id"]');
+          if (recordIdInput && data.record_id) {
+            recordIdInput.value = data.record_id;
+          }
+          
+          const agentNameInput = form.querySelector('input[name="agentName"]');
+          if (agentNameInput && data.agentName) {
+            agentNameInput.value = data.agentName;
+          }
+        }
+        
+        window.populatePartnersForm(data);
+        
+      } else if (formId === 'trainingsForm') {
+        // Handle trainings form specially
+        console.log('Trainings form population intercepted');
+        
+        const form = document.getElementById(formId);
+        if (form) {
+          const recordIdInput = form.querySelector('input[name="record_id"]');
+          if (recordIdInput && data.record_id) {
+            recordIdInput.value = data.record_id;
+          }
+          
+          const agentNameInput = form.querySelector('input[name="agentName"]');
+          if (agentNameInput && data.agentName) {
+            agentNameInput.value = data.agentName;
+          }
+        }
+        
+        window.populateTrainingsForm(data);
+        
       } else if (originalPopulateForm) {
         // Use original function for other forms
         originalPopulateForm(formId, data);
@@ -2445,6 +2561,726 @@
 
     // Load dreams when page loads
     setTimeout(waitForExternalScript, 1000);
+
+    // ============================================================================
+    // EXPENSES TO INCOME REPORT FUNCTIONALITY
+    // ============================================================================
+    
+    let expenseEntries = [];
+    let expenseEntryCounter = 0;
+
+    function addExpenseEntry() {
+      expenseEntryCounter++;
+      const entry = {
+        id: expenseEntryCounter,
+        item: '',
+        amount: '',
+        category: '',
+        date: '',
+        description: ''
+      };
+      expenseEntries.push(entry);
+      renderExpenseEntry(entry);
+      updateExpensesFormData();
+    }
+
+    function renderExpenseEntry(entry) {
+      const tbody = document.querySelector('#expensesTable tbody');
+      if (!tbody) return;
+      
+      const row = document.createElement('tr');
+      row.setAttribute('data-entry-id', entry.id);
+      
+      row.innerHTML = `
+        <td><input type="text" class="form-control expense-item" value="${entry.item}" placeholder="e.g., Office supplies"></td>
+        <td><input type="number" class="form-control expense-amount" value="${entry.amount}" placeholder="0.00" step="0.01"></td>
+        <td><select class="form-control expense-category">
+          <option value="Business" ${entry.category === 'Business' ? 'selected' : ''}>Business</option>
+          <option value="Marketing" ${entry.category === 'Marketing' ? 'selected' : ''}>Marketing</option>
+          <option value="Training" ${entry.category === 'Training' ? 'selected' : ''}>Training</option>
+          <option value="Travel" ${entry.category === 'Travel' ? 'selected' : ''}>Travel</option>
+          <option value="Equipment" ${entry.category === 'Equipment' ? 'selected' : ''}>Equipment</option>
+          <option value="Other" ${entry.category === 'Other' ? 'selected' : ''}>Other</option>
+        </select></td>
+        <td><input type="date" class="form-control expense-date" value="${entry.date}"></td>
+        <td><input type="text" class="form-control expense-description" value="${entry.description}" placeholder="Brief description"></td>
+        <td class="table-actions">
+          <button type="button" onclick="removeExpenseEntry(${entry.id})" title="Delete">
+            <i class="fas fa-trash"></i>
+          </button>
+        </td>
+      `;
+      
+      tbody.appendChild(row);
+      
+      // Add auto-save listeners
+      row.querySelectorAll('input, select').forEach(input => {
+        input.addEventListener('input', function() {
+          const entryIndex = expenseEntries.findIndex(e => e.id === entry.id);
+          if (entryIndex !== -1) {
+            expenseEntries[entryIndex].item = row.querySelector('.expense-item').value;
+            expenseEntries[entryIndex].amount = row.querySelector('.expense-amount').value;
+            expenseEntries[entryIndex].category = row.querySelector('.expense-category').value;
+            expenseEntries[entryIndex].date = row.querySelector('.expense-date').value;
+            expenseEntries[entryIndex].description = row.querySelector('.expense-description').value;
+            
+            updateExpensesFormData();
+            
+            clearTimeout(window.expenseAutoSaveTimeout);
+            window.expenseAutoSaveTimeout = setTimeout(() => {
+              saveExpenses();
+            }, 1000);
+          }
+        });
+      });
+    }
+
+    function removeExpenseEntry(entryId) {
+      expenseEntries = expenseEntries.filter(entry => entry.id !== entryId);
+      const row = document.querySelector(`#expensesTable tr[data-entry-id="${entryId}"]`);
+      if (row) {
+        row.remove();
+      }
+      updateExpensesFormData();
+    }
+
+    function updateExpensesFormData() {
+      document.querySelectorAll('#expensesForm input[name^="expenses"]').forEach(input => {
+        if (input.type === 'hidden') {
+          input.remove();
+        }
+      });
+      
+      const form = document.getElementById('expensesForm');
+      if (!form) return;
+      
+      if (expenseEntries.length > 0) {
+        const expensesJsonInput = document.createElement('input');
+        expensesJsonInput.type = 'hidden';
+        expensesJsonInput.name = 'expenses_data';
+        expensesJsonInput.value = JSON.stringify(expenseEntries);
+        form.appendChild(expensesJsonInput);
+        
+        const firstExpense = expenseEntries[0];
+        if (firstExpense) {
+          const itemInput = document.createElement('input');
+          itemInput.type = 'hidden';
+          itemInput.name = 'item';
+          itemInput.value = firstExpense.item || '';
+          form.appendChild(itemInput);
+          
+          const amountInput = document.createElement('input');
+          amountInput.type = 'hidden';
+          amountInput.name = 'amount';
+          amountInput.value = firstExpense.amount || '';
+          form.appendChild(amountInput);
+          
+          const categoryInput = document.createElement('input');
+          categoryInput.type = 'hidden';
+          categoryInput.name = 'category';
+          categoryInput.value = firstExpense.category || '';
+          form.appendChild(categoryInput);
+          
+          const dateInput = document.createElement('input');
+          dateInput.type = 'hidden';
+          dateInput.name = 'date';
+          dateInput.value = firstExpense.date || '';
+          form.appendChild(dateInput);
+          
+          const descriptionInput = document.createElement('input');
+          descriptionInput.type = 'hidden';
+          descriptionInput.name = 'description';
+          descriptionInput.value = firstExpense.description || '';
+          form.appendChild(descriptionInput);
+        }
+        
+        const countInput = document.createElement('input');
+        countInput.type = 'hidden';
+        countInput.name = 'expenses_count';
+        countInput.value = expenseEntries.length.toString();
+        form.appendChild(countInput);
+      }
+    }
+
+    async function saveExpenses(event) {
+      if (event) {
+        event.preventDefault();
+      }
+
+      document.querySelectorAll('#expensesTable tbody tr').forEach((row, index) => {
+        const entryIndex = expenseEntries.findIndex(entry => entry.id == row.getAttribute('data-entry-id'));
+        if (entryIndex !== -1) {
+          expenseEntries[entryIndex].item = row.querySelector('.expense-item').value;
+          expenseEntries[entryIndex].amount = row.querySelector('.expense-amount').value;
+          expenseEntries[entryIndex].category = row.querySelector('.expense-category').value;
+          expenseEntries[entryIndex].date = row.querySelector('.expense-date').value;
+          expenseEntries[entryIndex].description = row.querySelector('.expense-description').value;
+        }
+      });
+
+      updateExpensesFormData();
+
+      const statusElement = document.getElementById('expensesFormSaveStatus');
+      if (statusElement) {
+        statusElement.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Saving...';
+        statusElement.className = 'text-sm text-blue-500 mr-auto flex items-center';
+      }
+
+      if (typeof window.saveFormData === 'function') {
+        const recordId = window.currentAgent + '_expensesForm';
+        document.getElementById('expensesRecordId').value = recordId;
+        document.getElementById('expensesAgentName').value = window.currentAgent;
+        
+        await window.saveFormData('expensesForm');
+        
+        if (statusElement) {
+          statusElement.innerHTML = '<i class="fas fa-check mr-2"></i>Saved successfully!';
+          statusElement.className = 'text-sm text-green-500 mr-auto flex items-center';
+          setTimeout(() => {
+            statusElement.innerHTML = '';
+          }, 2000);
+        }
+      }
+    }
+
+    window.populateExpensesForm = function(data) {
+      expenseEntries = [];
+      expenseEntryCounter = 0;
+      const tbody = document.querySelector('#expensesTable tbody');
+      if (tbody) {
+        tbody.innerHTML = '';
+      }
+      
+      let actualData = data;
+      if (data.entries && Array.isArray(data.entries) && data.entries.length > 0) {
+        actualData = data.entries[0];
+      }
+      
+      if (actualData.expenses_data) {
+        try {
+          const parsedExpenses = JSON.parse(actualData.expenses_data);
+          parsedExpenses.forEach(expenseData => {
+            const entry = {
+              id: expenseData.id || (expenseEntryCounter + 1),
+              item: expenseData.item || '',
+              amount: expenseData.amount || '',
+              category: expenseData.category || '',
+              date: expenseData.date || '',
+              description: expenseData.description || ''
+            };
+            expenseEntries.push(entry);
+            expenseEntryCounter = Math.max(expenseEntryCounter, entry.id);
+            renderExpenseEntry(entry);
+          });
+        } catch (error) {
+          console.log('Failed to parse expenses_data JSON:', error);
+        }
+      }
+      
+      if (expenseEntries.length === 0 && (actualData.item || actualData.amount || actualData.category)) {
+        const entry = {
+          id: 1,
+          item: actualData.item ? actualData.item.toString() : '',
+          amount: actualData.amount ? actualData.amount.toString() : '',
+          category: actualData.category ? actualData.category.toString() : '',
+          date: actualData.date ? actualData.date.toString() : '',
+          description: actualData.description ? actualData.description.toString() : ''
+        };
+        
+        if (entry.item || entry.amount || entry.category) {
+          expenseEntries.push(entry);
+          expenseEntryCounter = 1;
+          renderExpenseEntry(entry);
+        }
+      }
+      
+      updateExpensesFormData();
+    };
+
+    document.getElementById('addExpenseEntryBtn')?.addEventListener('click', addExpenseEntry);
+    document.getElementById('expensesForm')?.addEventListener('submit', saveExpenses);
+
+    // ============================================================================
+    // POTENTIAL BUSINESS PARTNERS FUNCTIONALITY
+    // ============================================================================
+    
+    let partnerEntries = [];
+    let partnerEntryCounter = 0;
+
+    function addPartnerEntry() {
+      partnerEntryCounter++;
+      const entry = {
+        id: partnerEntryCounter,
+        name: '',
+        contact: '',
+        email: '',
+        status: '',
+        notes: ''
+      };
+      partnerEntries.push(entry);
+      renderPartnerEntry(entry);
+      updatePartnersFormData();
+    }
+
+    function renderPartnerEntry(entry) {
+      const tbody = document.querySelector('#partnersTable tbody');
+      if (!tbody) return;
+      
+      const row = document.createElement('tr');
+      row.setAttribute('data-entry-id', entry.id);
+      
+      row.innerHTML = `
+        <td><input type="text" class="form-control partner-name" value="${entry.name}" placeholder="Full Name"></td>
+        <td><input type="text" class="form-control partner-contact" value="${entry.contact}" placeholder="Phone Number"></td>
+        <td><input type="email" class="form-control partner-email" value="${entry.email}" placeholder="email@example.com"></td>
+        <td><select class="form-control partner-status">
+          <option value="Prospect" ${entry.status === 'Prospect' ? 'selected' : ''}>Prospect</option>
+          <option value="Contacted" ${entry.status === 'Contacted' ? 'selected' : ''}>Contacted</option>
+          <option value="Meeting Scheduled" ${entry.status === 'Meeting Scheduled' ? 'selected' : ''}>Meeting Scheduled</option>
+          <option value="In Discussion" ${entry.status === 'In Discussion' ? 'selected' : ''}>In Discussion</option>
+          <option value="Closed" ${entry.status === 'Closed' ? 'selected' : ''}>Closed</option>
+          <option value="Not Interested" ${entry.status === 'Not Interested' ? 'selected' : ''}>Not Interested</option>
+        </select></td>
+        <td><input type="text" class="form-control partner-notes" value="${entry.notes}" placeholder="Additional notes"></td>
+        <td class="table-actions">
+          <button type="button" onclick="removePartnerEntry(${entry.id})" title="Delete">
+            <i class="fas fa-trash"></i>
+          </button>
+        </td>
+      `;
+      
+      tbody.appendChild(row);
+      
+      // Add auto-save listeners
+      row.querySelectorAll('input, select').forEach(input => {
+        input.addEventListener('input', function() {
+          const entryIndex = partnerEntries.findIndex(e => e.id === entry.id);
+          if (entryIndex !== -1) {
+            partnerEntries[entryIndex].name = row.querySelector('.partner-name').value;
+            partnerEntries[entryIndex].contact = row.querySelector('.partner-contact').value;
+            partnerEntries[entryIndex].email = row.querySelector('.partner-email').value;
+            partnerEntries[entryIndex].status = row.querySelector('.partner-status').value;
+            partnerEntries[entryIndex].notes = row.querySelector('.partner-notes').value;
+            
+            updatePartnersFormData();
+            
+            clearTimeout(window.partnerAutoSaveTimeout);
+            window.partnerAutoSaveTimeout = setTimeout(() => {
+              savePartners();
+            }, 1000);
+          }
+        });
+      });
+    }
+
+    function removePartnerEntry(entryId) {
+      partnerEntries = partnerEntries.filter(entry => entry.id !== entryId);
+      const row = document.querySelector(`#partnersTable tr[data-entry-id="${entryId}"]`);
+      if (row) {
+        row.remove();
+      }
+      updatePartnersFormData();
+    }
+
+    function updatePartnersFormData() {
+      document.querySelectorAll('#partnersForm input[name^="partners"]').forEach(input => {
+        if (input.type === 'hidden') {
+          input.remove();
+        }
+      });
+      
+      const form = document.getElementById('partnersForm');
+      if (!form) return;
+      
+      if (partnerEntries.length > 0) {
+        const partnersJsonInput = document.createElement('input');
+        partnersJsonInput.type = 'hidden';
+        partnersJsonInput.name = 'partners_data';
+        partnersJsonInput.value = JSON.stringify(partnerEntries);
+        form.appendChild(partnersJsonInput);
+        
+        const firstPartner = partnerEntries[0];
+        if (firstPartner) {
+          const nameInput = document.createElement('input');
+          nameInput.type = 'hidden';
+          nameInput.name = 'name';
+          nameInput.value = firstPartner.name || '';
+          form.appendChild(nameInput);
+          
+          const contactInput = document.createElement('input');
+          contactInput.type = 'hidden';
+          contactInput.name = 'contact';
+          contactInput.value = firstPartner.contact || '';
+          form.appendChild(contactInput);
+          
+          const emailInput = document.createElement('input');
+          emailInput.type = 'hidden';
+          emailInput.name = 'email';
+          emailInput.value = firstPartner.email || '';
+          form.appendChild(emailInput);
+          
+          const statusInput = document.createElement('input');
+          statusInput.type = 'hidden';
+          statusInput.name = 'status';
+          statusInput.value = firstPartner.status || '';
+          form.appendChild(statusInput);
+          
+          const notesInput = document.createElement('input');
+          notesInput.type = 'hidden';
+          notesInput.name = 'notes';
+          notesInput.value = firstPartner.notes || '';
+          form.appendChild(notesInput);
+        }
+        
+        const countInput = document.createElement('input');
+        countInput.type = 'hidden';
+        countInput.name = 'partners_count';
+        countInput.value = partnerEntries.length.toString();
+        form.appendChild(countInput);
+      }
+    }
+
+    async function savePartners(event) {
+      if (event) {
+        event.preventDefault();
+      }
+
+      document.querySelectorAll('#partnersTable tbody tr').forEach((row, index) => {
+        const entryIndex = partnerEntries.findIndex(entry => entry.id == row.getAttribute('data-entry-id'));
+        if (entryIndex !== -1) {
+          partnerEntries[entryIndex].name = row.querySelector('.partner-name').value;
+          partnerEntries[entryIndex].contact = row.querySelector('.partner-contact').value;
+          partnerEntries[entryIndex].email = row.querySelector('.partner-email').value;
+          partnerEntries[entryIndex].status = row.querySelector('.partner-status').value;
+          partnerEntries[entryIndex].notes = row.querySelector('.partner-notes').value;
+        }
+      });
+
+      updatePartnersFormData();
+
+      const statusElement = document.getElementById('partnersFormSaveStatus');
+      if (statusElement) {
+        statusElement.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Saving...';
+        statusElement.className = 'text-sm text-blue-500 mr-auto flex items-center';
+      }
+
+      if (typeof window.saveFormData === 'function') {
+        const recordId = window.currentAgent + '_partnersForm';
+        document.getElementById('partnersRecordId').value = recordId;
+        document.getElementById('partnersAgentName').value = window.currentAgent;
+        
+        await window.saveFormData('partnersForm');
+        
+        if (statusElement) {
+          statusElement.innerHTML = '<i class="fas fa-check mr-2"></i>Saved successfully!';
+          statusElement.className = 'text-sm text-green-500 mr-auto flex items-center';
+          setTimeout(() => {
+            statusElement.innerHTML = '';
+          }, 2000);
+        }
+      }
+    }
+
+    window.populatePartnersForm = function(data) {
+      partnerEntries = [];
+      partnerEntryCounter = 0;
+      const tbody = document.querySelector('#partnersTable tbody');
+      if (tbody) {
+        tbody.innerHTML = '';
+      }
+      
+      let actualData = data;
+      if (data.entries && Array.isArray(data.entries) && data.entries.length > 0) {
+        actualData = data.entries[0];
+      }
+      
+      if (actualData.partners_data) {
+        try {
+          const parsedPartners = JSON.parse(actualData.partners_data);
+          parsedPartners.forEach(partnerData => {
+            const entry = {
+              id: partnerData.id || (partnerEntryCounter + 1),
+              name: partnerData.name || '',
+              contact: partnerData.contact || '',
+              email: partnerData.email || '',
+              status: partnerData.status || '',
+              notes: partnerData.notes || ''
+            };
+            partnerEntries.push(entry);
+            partnerEntryCounter = Math.max(partnerEntryCounter, entry.id);
+            renderPartnerEntry(entry);
+          });
+        } catch (error) {
+          console.log('Failed to parse partners_data JSON:', error);
+        }
+      }
+      
+      if (partnerEntries.length === 0 && (actualData.name || actualData.contact || actualData.email)) {
+        const entry = {
+          id: 1,
+          name: actualData.name ? actualData.name.toString() : '',
+          contact: actualData.contact ? actualData.contact.toString() : '',
+          email: actualData.email ? actualData.email.toString() : '',
+          status: actualData.status ? actualData.status.toString() : '',
+          notes: actualData.notes ? actualData.notes.toString() : ''
+        };
+        
+        if (entry.name || entry.contact || entry.email) {
+          partnerEntries.push(entry);
+          partnerEntryCounter = 1;
+          renderPartnerEntry(entry);
+        }
+      }
+      
+      updatePartnersFormData();
+    };
+
+    document.getElementById('addPartnerEntryBtn')?.addEventListener('click', addPartnerEntry);
+    document.getElementById('partnersForm')?.addEventListener('submit', savePartners);
+
+    // ============================================================================
+    // POTENTIAL FIELD TRAININGS FUNCTIONALITY
+    // ============================================================================
+    
+    let clientEntries = [];
+    let clientEntryCounter = 0;
+
+    function addClientEntry() {
+      clientEntryCounter++;
+      const entry = {
+        id: clientEntryCounter,
+        clientName: '',
+        date: '',
+        trainingType: '',
+        outcome: '',
+        notes: ''
+      };
+      clientEntries.push(entry);
+      renderClientEntry(entry);
+      updateClientsFormData();
+    }
+
+    function renderClientEntry(entry) {
+      const tbody = document.querySelector('#trainingsTable tbody');
+      if (!tbody) return;
+      
+      const row = document.createElement('tr');
+      row.setAttribute('data-entry-id', entry.id);
+      
+      row.innerHTML = `
+        <td><input type="text" class="form-control client-name" value="${entry.clientName}" placeholder="Client Name"></td>
+        <td><input type="date" class="form-control client-date" value="${entry.date}"></td>
+        <td><select class="form-control client-training-type">
+          <option value="Product Training" ${entry.trainingType === 'Product Training' ? 'selected' : ''}>Product Training</option>
+          <option value="Sales Training" ${entry.trainingType === 'Sales Training' ? 'selected' : ''}>Sales Training</option>
+          <option value="Compliance Training" ${entry.trainingType === 'Compliance Training' ? 'selected' : ''}>Compliance Training</option>
+          <option value="Leadership Training" ${entry.trainingType === 'Leadership Training' ? 'selected' : ''}>Leadership Training</option>
+          <option value="System Training" ${entry.trainingType === 'System Training' ? 'selected' : ''}>System Training</option>
+          <option value="Other" ${entry.trainingType === 'Other' ? 'selected' : ''}>Other</option>
+        </select></td>
+        <td><select class="form-control client-outcome">
+          <option value="Completed" ${entry.outcome === 'Completed' ? 'selected' : ''}>Completed</option>
+          <option value="In Progress" ${entry.outcome === 'In Progress' ? 'selected' : ''}>In Progress</option>
+          <option value="Scheduled" ${entry.outcome === 'Scheduled' ? 'selected' : ''}>Scheduled</option>
+          <option value="Cancelled" ${entry.outcome === 'Cancelled' ? 'selected' : ''}>Cancelled</option>
+          <option value="Rescheduled" ${entry.outcome === 'Rescheduled' ? 'selected' : ''}>Rescheduled</option>
+        </select></td>
+        <td><input type="text" class="form-control client-notes" value="${entry.notes}" placeholder="Training notes"></td>
+        <td class="table-actions">
+          <button type="button" onclick="removeClientEntry(${entry.id})" title="Delete">
+            <i class="fas fa-trash"></i>
+          </button>
+        </td>
+      `;
+      
+      tbody.appendChild(row);
+      
+      // Add auto-save listeners
+      row.querySelectorAll('input, select').forEach(input => {
+        input.addEventListener('input', function() {
+          const entryIndex = clientEntries.findIndex(e => e.id === entry.id);
+          if (entryIndex !== -1) {
+            clientEntries[entryIndex].clientName = row.querySelector('.client-name').value;
+            clientEntries[entryIndex].date = row.querySelector('.client-date').value;
+            clientEntries[entryIndex].trainingType = row.querySelector('.client-training-type').value;
+            clientEntries[entryIndex].outcome = row.querySelector('.client-outcome').value;
+            clientEntries[entryIndex].notes = row.querySelector('.client-notes').value;
+            
+            updateClientsFormData();
+            
+            clearTimeout(window.clientAutoSaveTimeout);
+            window.clientAutoSaveTimeout = setTimeout(() => {
+              saveClients();
+            }, 1000);
+          }
+        });
+      });
+    }
+
+    function removeTrainingEntry(entryId) {
+      trainingEntries = trainingEntries.filter(entry => entry.id !== entryId);
+      const row = document.querySelector(`#trainingsTable tr[data-entry-id="${entryId}"]`);
+      if (row) {
+        row.remove();
+      }
+      updateTrainingsFormData();
+    }
+
+    function updateTrainingsFormData() {
+      document.querySelectorAll('#trainingsForm input[name^="trainings"]').forEach(input => {
+        if (input.type === 'hidden') {
+          input.remove();
+        }
+      });
+      
+      const form = document.getElementById('trainingsForm');
+      if (!form) return;
+      
+      if (trainingEntries.length > 0) {
+        const trainingsJsonInput = document.createElement('input');
+        trainingsJsonInput.type = 'hidden';
+        trainingsJsonInput.name = 'trainings_data';
+        trainingsJsonInput.value = JSON.stringify(trainingEntries);
+        form.appendChild(trainingsJsonInput);
+        
+        const firstTraining = trainingEntries[0];
+        if (firstTraining) {
+          const clientNameInput = document.createElement('input');
+          clientNameInput.type = 'hidden';
+          clientNameInput.name = 'client_name';
+          clientNameInput.value = firstTraining.clientName || '';
+          form.appendChild(clientNameInput);
+          
+          const dateInput = document.createElement('input');
+          dateInput.type = 'hidden';
+          dateInput.name = 'date';
+          dateInput.value = firstTraining.date || '';
+          form.appendChild(dateInput);
+          
+          const trainingTypeInput = document.createElement('input');
+          trainingTypeInput.type = 'hidden';
+          trainingTypeInput.name = 'training_type';
+          trainingTypeInput.value = firstTraining.trainingType || '';
+          form.appendChild(trainingTypeInput);
+          
+          const outcomeInput = document.createElement('input');
+          outcomeInput.type = 'hidden';
+          outcomeInput.name = 'outcome';
+          outcomeInput.value = firstTraining.outcome || '';
+          form.appendChild(outcomeInput);
+          
+          const notesInput = document.createElement('input');
+          notesInput.type = 'hidden';
+          notesInput.name = 'notes';
+          notesInput.value = firstTraining.notes || '';
+          form.appendChild(notesInput);
+        }
+        
+        const countInput = document.createElement('input');
+        countInput.type = 'hidden';
+        countInput.name = 'trainings_count';
+        countInput.value = trainingEntries.length.toString();
+        form.appendChild(countInput);
+      }
+    }
+
+    async function saveTrainings(event) {
+      if (event) {
+        event.preventDefault();
+      }
+
+      document.querySelectorAll('#trainingsTable tbody tr').forEach((row, index) => {
+        const entryIndex = trainingEntries.findIndex(entry => entry.id == row.getAttribute('data-entry-id'));
+        if (entryIndex !== -1) {
+          trainingEntries[entryIndex].clientName = row.querySelector('.training-client-name').value;
+          trainingEntries[entryIndex].date = row.querySelector('.training-date').value;
+          trainingEntries[entryIndex].trainingType = row.querySelector('.training-type').value;  
+          trainingEntries[entryIndex].outcome = row.querySelector('.training-outcome').value;
+          trainingEntries[entryIndex].notes = row.querySelector('.training-notes').value;
+        }
+      });
+
+      updateTrainingsFormData();
+
+      const statusElement = document.getElementById('trainingsFormSaveStatus');
+      if (statusElement) {
+        statusElement.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Saving...';
+        statusElement.className = 'text-sm text-blue-500 mr-auto flex items-center';
+      }
+
+      if (typeof window.saveFormData === 'function') {
+        const recordId = window.currentAgent + '_trainingsForm';
+        document.getElementById('trainingsRecordId').value = recordId;
+        document.getElementById('trainingsAgentName').value = window.currentAgent;
+        
+        await window.saveFormData('trainingsForm');
+        
+        if (statusElement) {
+          statusElement.innerHTML = '<i class="fas fa-check mr-2"></i>Saved successfully!';
+          statusElement.className = 'text-sm text-green-500 mr-auto flex items-center';
+          setTimeout(() => {
+            statusElement.innerHTML = '';
+          }, 2000);
+        }
+      }
+    }
+
+    window.populateTrainingsForm = function(data) {
+      trainingEntries = [];
+      trainingEntryCounter = 0;
+      const tbody = document.querySelector('#trainingsTable tbody');
+      if (tbody) {
+        tbody.innerHTML = '';
+      }
+      
+      let actualData = data;
+      if (data.entries && Array.isArray(data.entries) && data.entries.length > 0) {
+        actualData = data.entries[0];
+      }
+      
+      if (actualData.trainings_data) {
+        try {
+          const parsedTrainings = JSON.parse(actualData.trainings_data);
+          parsedTrainings.forEach(trainingData => {
+            const entry = {
+              id: trainingData.id || (trainingEntryCounter + 1),
+              clientName: trainingData.clientName || '',
+              date: trainingData.date || '',
+              trainingType: trainingData.trainingType || '',
+              outcome: trainingData.outcome || '',
+              notes: trainingData.notes || ''
+            };
+            trainingEntries.push(entry);
+            trainingEntryCounter = Math.max(trainingEntryCounter, entry.id);
+            renderTrainingEntry(entry);
+          });
+        } catch (error) {
+          console.log('Failed to parse trainings_data JSON:', error);
+        }
+      }
+      
+      if (trainingEntries.length === 0 && (actualData.client_name || actualData.date || actualData.training_type)) {
+        const entry = {
+          id: 1,
+          clientName: actualData.client_name ? actualData.client_name.toString() : '',
+          date: actualData.date ? actualData.date.toString() : '',
+          trainingType: actualData.training_type ? actualData.training_type.toString() : '',
+          outcome: actualData.outcome ? actualData.outcome.toString() : '',
+          notes: actualData.notes ? actualData.notes.toString() : ''
+        };
+        
+        if (entry.clientName || entry.date || entry.trainingType) {
+          trainingEntries.push(entry);
+          trainingEntryCounter = 1;
+          renderTrainingEntry(entry);
+        }
+      }
+      
+      updateTrainingsFormData();
+    };
+
+    document.getElementById('addTrainingEntryBtn')?.addEventListener('click', addTrainingEntry);
+    document.getElementById('trainingsForm')?.addEventListener('submit', saveTrainings);
 
     // Auto-calculate net income for expenses form
     const totalIncomeInput = document.getElementById('totalIncome');
