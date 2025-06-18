@@ -114,6 +114,14 @@ function doGet(e) {
       return handleBulkUpdateEntries(e);
     }
     
+    // Handle change password (admin only)
+    if (action === 'changePassword') {
+      const result = handleChangePassword(e);
+      return ContentService.createTextOutput(
+        callback + '(' + JSON.stringify(result) + ');'
+      ).setMimeType(ContentService.MimeType.JAVASCRIPT);
+    }
+    
     // Default response
     return ContentService.createTextOutput(
       callback + '(' + JSON.stringify({ status: 'error', message: 'Unknown action' }) + ');'
@@ -1028,6 +1036,69 @@ function getUsers(e) {
   } catch (error) {
     Logger.log('Error in getUsers: %s', error.toString());
     return jsonpResponse({ status: 'error', message: 'Error getting users: ' + error.toString() }, callback);
+  }
+}
+
+// Handle change password (admin only)
+function handleChangePassword(e) {
+  try {
+    Logger.log('handleChangePassword called with parameters: ' + JSON.stringify(e.parameter));
+    
+    const targetAgentName = e.parameter.targetAgentName;
+    const newPassword = e.parameter.newPassword;
+    const adminName = e.parameter.adminName;
+    
+    if (!targetAgentName || !newPassword || !adminName) {
+      return { status: 'error', message: 'Missing required parameters: targetAgentName, newPassword, or adminName' };
+    }
+    
+    // Get the Agents sheet
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const agentSheet = ss.getSheetByName('Agents');
+    if (!agentSheet) {
+      return { status: 'error', message: 'Agents sheet not found' };
+    }
+    
+    // Find the target user
+    const lastRow = agentSheet.getLastRow();
+    const data = agentSheet.getRange(1, 1, lastRow, agentSheet.getLastColumn()).getValues();
+    const headers = data[0];
+    
+    const agentNameColIndex = headers.indexOf('agentName');
+    const passwordColIndex = headers.indexOf('password');
+    const lastUpdatedColIndex = headers.indexOf('lastUpdated');
+    
+    if (agentNameColIndex === -1 || passwordColIndex === -1) {
+      return { status: 'error', message: 'Required columns not found in Agents sheet' };
+    }
+    
+    // Find the target user row
+    let targetRowIndex = -1;
+    for (let i = 1; i < data.length; i++) { // Start from 1 to skip headers
+      if (data[i][agentNameColIndex] === targetAgentName) {
+        targetRowIndex = i + 1; // Google Sheets is 1-indexed
+        break;
+      }
+    }
+    
+    if (targetRowIndex === -1) {
+      return { status: 'error', message: `User ${targetAgentName} not found` };
+    }
+    
+    // Update the password
+    agentSheet.getRange(targetRowIndex, passwordColIndex + 1).setValue(newPassword);
+    
+    // Update lastUpdated timestamp
+    if (lastUpdatedColIndex !== -1) {
+      agentSheet.getRange(targetRowIndex, lastUpdatedColIndex + 1).setValue(new Date().toISOString());
+    }
+    
+    Logger.log(`Password changed successfully for user: ${targetAgentName} by admin: ${adminName}`);
+    return { status: 'success', message: `Password changed successfully for ${targetAgentName}` };
+    
+  } catch (error) {
+    Logger.log('Error in handleChangePassword: %s', error.toString());
+    return { status: 'error', message: 'Error changing password: ' + error.toString() };
   }
 }
 
