@@ -2282,7 +2282,7 @@
       } else if (pageId === 'potential-field-trainings') {
         console.log('Field Trainings page shown, loading data...');
         setTimeout(() => {
-          loadTrainingsData();
+          loadClientsData();
         }, 500);
       }
     }
@@ -2315,7 +2315,7 @@
         } else if (currentPage === 'potential-business-partners-form' || document.getElementById('potential-business-partners-form')?.style.display !== 'none') {
           loadPartnersData();
         } else if (currentPage === 'potential-field-trainings-form' || document.getElementById('potential-field-trainings-form')?.style.display !== 'none') {
-          loadTrainingsData();
+          loadClientsData();
         }
       } else {
         console.log('Waiting for external script to load...');
@@ -2353,11 +2353,11 @@
       }
     }
     
-    // Function to load trainings data
-    function loadTrainingsData() {
+    // Function to load clients data
+    function loadClientsData() {
       if (typeof window.loadFormData === 'function') {
-        console.log('Loading trainings data...');
-        window.loadFormData('trainingsForm');
+        console.log('Loading clients data...');
+        window.loadFormData('clientsForm');
       } else {
         console.log('Load function not available yet');
       }
@@ -2534,9 +2534,9 @@
         
         window.populatePartnersForm(data);
         
-      } else if (formId === 'trainingsForm') {
-        // Handle trainings form specially
-        console.log('Trainings form population intercepted');
+      } else if (formId === 'clientsForm') {
+        // Handle clients form specially
+        console.log('Clients form population intercepted');
         
         const form = document.getElementById(formId);
         if (form) {
@@ -2551,7 +2551,7 @@
           }
         }
         
-        window.populateTrainingsForm(data);
+        window.populateClientsForm(data);
         
       } else if (originalPopulateForm) {
         // Use original function for other forms
@@ -2727,9 +2727,12 @@
       }
 
       if (typeof window.saveFormData === 'function') {
-        const recordId = window.currentAgent + '_expensesForm';
-        document.getElementById('expensesRecordId').value = recordId;
-        document.getElementById('expensesAgentName').value = window.currentAgent;
+        const recordId = window.currentAgent.agentName + '_expensesForm';
+        const recordIdElement = document.getElementById('expensesRecordId');
+        const agentNameElement = document.getElementById('expensesAgentName');
+        
+        if (recordIdElement) recordIdElement.value = recordId;
+        if (agentNameElement) agentNameElement.value = window.currentAgent.agentName;
         
         await window.saveFormData('expensesForm');
         
@@ -2965,9 +2968,12 @@
       }
 
       if (typeof window.saveFormData === 'function') {
-        const recordId = window.currentAgent + '_partnersForm';
-        document.getElementById('partnersRecordId').value = recordId;
-        document.getElementById('partnersAgentName').value = window.currentAgent;
+        const recordId = window.currentAgent.agentName + '_partnersForm';
+        const recordIdElement = document.getElementById('partnersRecordId');
+        const agentNameElement = document.getElementById('partnersAgentName');
+        
+        if (recordIdElement) recordIdElement.value = recordId;
+        if (agentNameElement) agentNameElement.value = window.currentAgent.agentName;
         
         await window.saveFormData('partnersForm');
         
@@ -3117,103 +3123,106 @@
       });
     }
 
-    function removeTrainingEntry(entryId) {
-      trainingEntries = trainingEntries.filter(entry => entry.id !== entryId);
+    function removeClientEntry(entryId) {
+      clientEntries = clientEntries.filter(entry => entry.id !== entryId);
       const row = document.querySelector(`#trainingsTable tr[data-entry-id="${entryId}"]`);
       if (row) {
         row.remove();
       }
-      updateTrainingsFormData();
+      updateClientsFormData();
     }
 
-    function updateTrainingsFormData() {
-      document.querySelectorAll('#trainingsForm input[name^="trainings"]').forEach(input => {
+    function updateClientsFormData() {
+      document.querySelectorAll('#clientsForm input[name^="clients"]').forEach(input => {
         if (input.type === 'hidden') {
           input.remove();
         }
       });
       
-      const form = document.getElementById('trainingsForm');
+      const form = document.getElementById('clientsForm');
       if (!form) return;
       
-      if (trainingEntries.length > 0) {
-        const trainingsJsonInput = document.createElement('input');
-        trainingsJsonInput.type = 'hidden';
-        trainingsJsonInput.name = 'trainings_data';
-        trainingsJsonInput.value = JSON.stringify(trainingEntries);
-        form.appendChild(trainingsJsonInput);
+      if (clientEntries.length > 0) {
+        const clientsJsonInput = document.createElement('input');
+        clientsJsonInput.type = 'hidden';
+        clientsJsonInput.name = 'clients_data';
+        clientsJsonInput.value = JSON.stringify(clientEntries);
+        form.appendChild(clientsJsonInput);
         
-        const firstTraining = trainingEntries[0];
-        if (firstTraining) {
+        const firstClient = clientEntries[0];
+        if (firstClient) {
           const clientNameInput = document.createElement('input');
           clientNameInput.type = 'hidden';
           clientNameInput.name = 'client_name';
-          clientNameInput.value = firstTraining.clientName || '';
+          clientNameInput.value = firstClient.clientName || '';
           form.appendChild(clientNameInput);
           
           const dateInput = document.createElement('input');
           dateInput.type = 'hidden';
           dateInput.name = 'date';
-          dateInput.value = firstTraining.date || '';
+          dateInput.value = firstClient.date || '';
           form.appendChild(dateInput);
           
           const trainingTypeInput = document.createElement('input');
           trainingTypeInput.type = 'hidden';
           trainingTypeInput.name = 'training_type';
-          trainingTypeInput.value = firstTraining.trainingType || '';
+          trainingTypeInput.value = firstClient.trainingType || '';
           form.appendChild(trainingTypeInput);
           
           const outcomeInput = document.createElement('input');
           outcomeInput.type = 'hidden';
           outcomeInput.name = 'outcome';
-          outcomeInput.value = firstTraining.outcome || '';
+          outcomeInput.value = firstClient.outcome || '';
           form.appendChild(outcomeInput);
           
           const notesInput = document.createElement('input');
           notesInput.type = 'hidden';
           notesInput.name = 'notes';
-          notesInput.value = firstTraining.notes || '';
+          notesInput.value = firstClient.notes || '';
           form.appendChild(notesInput);
         }
         
         const countInput = document.createElement('input');
         countInput.type = 'hidden';
-        countInput.name = 'trainings_count';
-        countInput.value = trainingEntries.length.toString();
+        countInput.name = 'clients_count';
+        countInput.value = clientEntries.length.toString();
         form.appendChild(countInput);
       }
     }
 
-    async function saveTrainings(event) {
+    async function saveClients(event) {
       if (event) {
         event.preventDefault();
       }
 
       document.querySelectorAll('#trainingsTable tbody tr').forEach((row, index) => {
-        const entryIndex = trainingEntries.findIndex(entry => entry.id == row.getAttribute('data-entry-id'));
+        const entryIndex = clientEntries.findIndex(entry => entry.id == row.getAttribute('data-entry-id'));
         if (entryIndex !== -1) {
-          trainingEntries[entryIndex].clientName = row.querySelector('.training-client-name').value;
-          trainingEntries[entryIndex].date = row.querySelector('.training-date').value;
-          trainingEntries[entryIndex].trainingType = row.querySelector('.training-type').value;  
-          trainingEntries[entryIndex].outcome = row.querySelector('.training-outcome').value;
-          trainingEntries[entryIndex].notes = row.querySelector('.training-notes').value;
+          clientEntries[entryIndex].clientName = row.querySelector('.client-name').value;
+          clientEntries[entryIndex].date = row.querySelector('.client-date').value;
+          clientEntries[entryIndex].trainingType = row.querySelector('.client-training-type').value;  
+          clientEntries[entryIndex].outcome = row.querySelector('.client-outcome').value;
+          clientEntries[entryIndex].notes = row.querySelector('.client-notes').value;
         }
       });
 
-      updateTrainingsFormData();
+      updateClientsFormData();
 
-      const statusElement = document.getElementById('trainingsFormSaveStatus');
+      const statusElement = document.getElementById('clientsFormSaveStatus');
       if (statusElement) {
         statusElement.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Saving...';
         statusElement.className = 'text-sm text-blue-500 mr-auto flex items-center';
       }
 
       if (typeof window.saveFormData === 'function') {
-        const recordId = window.currentAgent + '_trainingsForm';
-        document.getElementById('trainingsRecordId').value = recordId;
-        document.getElementById('trainingsAgentName').value = window.currentAgent;
+        const recordId = window.currentAgent.agentName + '_clientsForm';
+        const recordIdElement = document.getElementById('clientsRecordId');
+        const agentNameElement = document.getElementById('clientsAgentName');
         
-        await window.saveFormData('trainingsForm');
+        if (recordIdElement) recordIdElement.value = recordId;
+        if (agentNameElement) agentNameElement.value = window.currentAgent.agentName;
+        
+        await window.saveFormData('clientsForm');
         
         if (statusElement) {
           statusElement.innerHTML = '<i class="fas fa-check mr-2"></i>Saved successfully!';
@@ -3225,9 +3234,9 @@
       }
     }
 
-    window.populateTrainingsForm = function(data) {
-      trainingEntries = [];
-      trainingEntryCounter = 0;
+    window.populateClientsForm = function(data) {
+      clientEntries = [];
+      clientEntryCounter = 0;
       const tbody = document.querySelector('#trainingsTable tbody');
       if (tbody) {
         tbody.innerHTML = '';
@@ -3238,28 +3247,28 @@
         actualData = data.entries[0];
       }
       
-      if (actualData.trainings_data) {
+      if (actualData.clients_data) {
         try {
-          const parsedTrainings = JSON.parse(actualData.trainings_data);
-          parsedTrainings.forEach(trainingData => {
+          const parsedClients = JSON.parse(actualData.clients_data);
+          parsedClients.forEach(clientData => {
             const entry = {
-              id: trainingData.id || (trainingEntryCounter + 1),
-              clientName: trainingData.clientName || '',
-              date: trainingData.date || '',
-              trainingType: trainingData.trainingType || '',
-              outcome: trainingData.outcome || '',
-              notes: trainingData.notes || ''
+              id: clientData.id || (clientEntryCounter + 1),
+              clientName: clientData.clientName || '',
+              date: clientData.date || '',
+              trainingType: clientData.trainingType || '',
+              outcome: clientData.outcome || '',
+              notes: clientData.notes || ''
             };
-            trainingEntries.push(entry);
-            trainingEntryCounter = Math.max(trainingEntryCounter, entry.id);
-            renderTrainingEntry(entry);
+            clientEntries.push(entry);
+            clientEntryCounter = Math.max(clientEntryCounter, entry.id);
+            renderClientEntry(entry);
           });
         } catch (error) {
-          console.log('Failed to parse trainings_data JSON:', error);
+          console.log('Failed to parse clients_data JSON:', error);
         }
       }
       
-      if (trainingEntries.length === 0 && (actualData.client_name || actualData.date || actualData.training_type)) {
+      if (clientEntries.length === 0 && (actualData.client_name || actualData.date || actualData.training_type)) {
         const entry = {
           id: 1,
           clientName: actualData.client_name ? actualData.client_name.toString() : '',
@@ -3270,17 +3279,17 @@
         };
         
         if (entry.clientName || entry.date || entry.trainingType) {
-          trainingEntries.push(entry);
-          trainingEntryCounter = 1;
-          renderTrainingEntry(entry);
+          clientEntries.push(entry);
+          clientEntryCounter = 1;
+          renderClientEntry(entry);
         }
       }
       
-      updateTrainingsFormData();
+      updateClientsFormData();
     };
 
-    document.getElementById('addTrainingEntryBtn')?.addEventListener('click', addTrainingEntry);
-    document.getElementById('trainingsForm')?.addEventListener('submit', saveTrainings);
+    document.getElementById('addTrainingEntryBtn')?.addEventListener('click', addClientEntry);
+    document.getElementById('clientsForm')?.addEventListener('submit', saveClients);
 
     // Auto-calculate net income for expenses form
     const totalIncomeInput = document.getElementById('totalIncome');
