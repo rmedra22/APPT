@@ -3447,6 +3447,48 @@
       }
     };
 
+    // Date formatting helper function
+    function formatDateForInput(dateValue) {
+      if (!dateValue) return '';
+
+      let date;
+
+      // Handle different date formats
+      if (dateValue instanceof Date) {
+        date = dateValue;
+      } else if (typeof dateValue === 'string') {
+        // Try to parse the string as a date
+        date = new Date(dateValue);
+
+        // If invalid date, try other formats
+        if (isNaN(date.getTime())) {
+          // Try MM/DD/YYYY format
+          const parts = dateValue.split('/');
+          if (parts.length === 3) {
+            date = new Date(parts[2], parts[0] - 1, parts[1]);
+          }
+        }
+      } else if (typeof dateValue === 'number') {
+        // Handle Excel serial date numbers
+        date = new Date((dateValue - 25569) * 86400 * 1000);
+      } else {
+        return '';
+      }
+
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        console.warn('Invalid date value:', dateValue);
+        return '';
+      }
+
+      // Format as YYYY-MM-DD for HTML date input
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+
+      return `${year}-${month}-${day}`;
+    }
+
     // Load dreams when page loads
     setTimeout(waitForExternalScript, 1000);
 
@@ -3669,7 +3711,7 @@
               item: expenseData.item || '',
               amount: expenseData.amount || '',
               category: expenseData.category || '',
-              date: expenseData.date || '',
+              date: formatDateForInput(expenseData.date) || '',
               description: expenseData.description || ''
             };
             expenseEntries.push(entry);
@@ -3687,7 +3729,7 @@
           item: actualData.item ? actualData.item.toString() : '',
           amount: actualData.amount ? actualData.amount.toString() : '',
           category: actualData.category ? actualData.category.toString() : '',
-          date: actualData.date ? actualData.date.toString() : '',
+          date: formatDateForInput(actualData.date) || '',
           description: actualData.description ? actualData.description.toString() : ''
         };
         
@@ -4181,7 +4223,7 @@
             const entry = {
               id: clientData.id || (clientEntryCounter + 1),
               clientName: clientData.clientName || '',
-              date: clientData.date || '',
+              date: formatDateForInput(clientData.date) || '',
               trainingType: clientData.trainingType || '',
               outcome: clientData.outcome || '',
               notes: clientData.notes || ''
@@ -4199,7 +4241,7 @@
         const entry = {
           id: 1,
           clientName: actualData.client_name ? actualData.client_name.toString() : '',
-          date: actualData.date ? actualData.date.toString() : '',
+          date: formatDateForInput(actualData.date) || '',
           trainingType: actualData.training_type ? actualData.training_type.toString() : '',
           outcome: actualData.outcome ? actualData.outcome.toString() : '',
           notes: actualData.notes ? actualData.notes.toString() : ''

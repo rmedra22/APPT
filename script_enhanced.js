@@ -752,10 +752,52 @@ function updateDateTime() {
 // Currency formatting helpers
 function formatCurrency(value) {
   if (value === null || value === undefined || isNaN(value)) return '';
-  return '₱' + parseFloat(value).toLocaleString('en-US', { 
-    minimumFractionDigits: 2, 
-    maximumFractionDigits: 2 
+  return '₱' + parseFloat(value).toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
   });
+}
+
+// Date formatting helper function
+function formatDateForInput(dateValue) {
+  if (!dateValue) return '';
+
+  let date;
+
+  // Handle different date formats
+  if (dateValue instanceof Date) {
+    date = dateValue;
+  } else if (typeof dateValue === 'string') {
+    // Try to parse the string as a date
+    date = new Date(dateValue);
+
+    // If invalid date, try other formats
+    if (isNaN(date.getTime())) {
+      // Try MM/DD/YYYY format
+      const parts = dateValue.split('/');
+      if (parts.length === 3) {
+        date = new Date(parts[2], parts[0] - 1, parts[1]);
+      }
+    }
+  } else if (typeof dateValue === 'number') {
+    // Handle Excel serial date numbers
+    date = new Date((dateValue - 25569) * 86400 * 1000);
+  } else {
+    return '';
+  }
+
+  // Check if date is valid
+  if (isNaN(date.getTime())) {
+    console.warn('Invalid date value:', dateValue);
+    return '';
+  }
+
+  // Format as YYYY-MM-DD for HTML date input
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
 }
 
 function parseCurrency(value) {
@@ -985,6 +1027,9 @@ function populateForm(formId, data) {
         if (field.value === data[key]) {
           field.checked = true;
         }
+      } else if (field.type === 'date') {
+        // Handle date fields specially
+        field.value = formatDateForInput(data[key]) || '';
       } else {
         field.value = data[key] || '';
       }
