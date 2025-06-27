@@ -340,7 +340,7 @@ select:focus {
 }
 
 .form-section:hover {
-  background: #f1f5f9;
+  background: #647a7e;
   border-color: #cbd5e1;
   box-shadow: var(--shadow-sm);
 }
