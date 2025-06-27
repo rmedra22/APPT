@@ -362,6 +362,21 @@ select:focus {
   border-radius: 2px;
 }
 
+/* Fixed Header */
+.fixed-header h1, 
+.fixed-header h2, 
+.fixed-header h3, 
+.fixed-header h4, 
+.fixed-header h5, 
+.fixed-header h6 {
+  color: #ffffff;
+}
+
+/* General heading styles */
+h1, h2, h3, h4, h5, h6 {
+  color: #ffffff;
+}
+
 /* Enhanced Checkbox Styles */
 .checkbox-wrapper {
   position: relative;
