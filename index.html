@@ -1481,29 +1481,35 @@
                 <h2 class="page-title">Expenses to Income Report</h2>
                 <p class="page-description">Log your expenses and track your income.</p>
 
-                <button id="addExpenseEntryBtn" class="add-entry-btn">Add New Expense</button>
+                <form id="expensesForm">
+                    <button type="button" id="addExpenseEntryBtn" class="add-entry-btn">Add New Expense</button>
 
-                <div class="data-table-container">
-                    <table id="expensesTable" class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Item</th>
-                                <th>Amount</th>
-                                <th>Category</th>
-                                <th>Date</th>
-                                <th>Description</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            </tbody>
-                    </table>
-                </div>
+                    <div class="data-table-container">
+                        <table id="expensesTable" class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Item</th>
+                                    <th>Amount</th>
+                                    <th>Category</th>
+                                    <th>Date</th>
+                                    <th>Description</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                </tbody>
+                        </table>
+                    </div>
 
-                <div class="form-actions">
-                  <p id="expensesFormSaveStatus" class="text-sm text-gray-500 mr-auto flex items-center"></p>
-                  <button type="submit" class="btn btn-primary" id="saveExpensesBtn">Save All Expenses</button>
-                </div>
+                    <!-- Hidden fields for form submission -->
+                    <input type="hidden" id="expensesRecordId" name="record_id">
+                    <input type="hidden" id="expensesAgentName" name="agentName">
+
+                    <div class="form-actions">
+                      <p id="expensesFormSaveStatus" class="text-sm text-gray-500 mr-auto flex items-center"></p>
+                      <button type="submit" class="btn btn-primary">Save All Expenses</button>
+                    </div>
+                </form>
             </div>
         </div>
 
@@ -1512,29 +1518,35 @@
                 <h2 class="page-title">Potential Business Partners</h2>
                 <p class="page-description">Manage your list of potential business partners.</p>
 
-                <button id="addPartnerEntryBtn" class="add-entry-btn">Add New Partner</button>
+                <form id="partnersForm">
+                    <button type="button" id="addPartnerEntryBtn" class="add-entry-btn">Add New Partner</button>
 
-                <div class="data-table-container">
-                    <table id="partnersTable" class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Contact</th>
-                                <th>Email</th>
-                                <th>Status</th>
-                                <th>Notes</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            </tbody>
-                    </table>
-                </div>
+                    <div class="data-table-container">
+                        <table id="partnersTable" class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Contact</th>
+                                    <th>Email</th>
+                                    <th>Status</th>
+                                    <th>Notes</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                </tbody>
+                        </table>
+                    </div>
 
-                <div class="form-actions">
-                  <p id="partnersFormSaveStatus" class="text-sm text-gray-500 mr-auto flex items-center"></p>
-                  <button type="submit" class="btn btn-primary" id="savePartnersBtn">Save All Partners</button>
-                </div>
+                    <!-- Hidden fields for form submission -->
+                    <input type="hidden" id="partnersRecordId" name="record_id">
+                    <input type="hidden" id="partnersAgentName" name="agentName">
+
+                    <div class="form-actions">
+                      <p id="partnersFormSaveStatus" class="text-sm text-gray-500 mr-auto flex items-center"></p>
+                      <button type="submit" class="btn btn-primary">Save All Partners</button>
+                    </div>
+                </form>
             </div>
         </div>
 
@@ -2901,19 +2913,19 @@
           loadDreamsData();
         }, 500);
       } else if (pageId === 'expenses-to-income-report') {
-        console.log('Expenses Report page shown, loading data...');
+        console.log('Expenses Report page shown, setting up form...');
         setTimeout(() => {
-          loadExpensesData();
+          setupExpensesForm();
         }, 500);
       } else if (pageId === 'potential-business-partners') {
-        console.log('Business Partners page shown, loading data...');
+        console.log('Business Partners page shown, setting up form...');
         setTimeout(() => {
-          loadPartnersData();
+          setupPartnersForm();
         }, 500);
       } else if (pageId === 'potential-field-trainings') {
-        console.log('Field Trainings page shown, loading data...');
+        console.log('Field Trainings page shown, setting up form...');
         setTimeout(() => {
-          loadClientsData();
+          setupClientsForm();
         }, 500);
       }
     }
@@ -3080,7 +3092,71 @@
         console.log('Load function not available yet');
       }
     }
-    
+
+    // Setup functions for multi-entry forms
+    function setupExpensesForm() {
+      if (!window.currentAgent) return;
+
+      console.log('Setting up expenses form');
+      const form = document.getElementById('expensesForm');
+      if (!form) return;
+
+      const recordIdInput = form.querySelector('#expensesRecordId');
+      const agentNameInput = form.querySelector('#expensesAgentName');
+
+      if (recordIdInput) {
+        recordIdInput.value = `${window.currentAgent.agentName}_expensesForm`;
+      }
+      if (agentNameInput) {
+        agentNameInput.value = window.currentAgent.agentName;
+      }
+
+      // Load existing data
+      loadExpensesData();
+    }
+
+    function setupPartnersForm() {
+      if (!window.currentAgent) return;
+
+      console.log('Setting up partners form');
+      const form = document.getElementById('partnersForm');
+      if (!form) return;
+
+      const recordIdInput = form.querySelector('#partnersRecordId');
+      const agentNameInput = form.querySelector('#partnersAgentName');
+
+      if (recordIdInput) {
+        recordIdInput.value = `${window.currentAgent.agentName}_partnersForm`;
+      }
+      if (agentNameInput) {
+        agentNameInput.value = window.currentAgent.agentName;
+      }
+
+      // Load existing data
+      loadPartnersData();
+    }
+
+    function setupClientsForm() {
+      if (!window.currentAgent) return;
+
+      console.log('Setting up clients form');
+      const form = document.getElementById('clientsForm');
+      if (!form) return;
+
+      const recordIdInput = form.querySelector('#clientsRecordId');
+      const agentNameInput = form.querySelector('#clientsAgentName');
+
+      if (recordIdInput) {
+        recordIdInput.value = `${window.currentAgent.agentName}_clientsForm`;
+      }
+      if (agentNameInput) {
+        agentNameInput.value = window.currentAgent.agentName;
+      }
+
+      // Load existing data
+      loadClientsData();
+    }
+
     // Enhanced function to load dreams from Google Sheets
     async function loadDreamsFromSheets() {
       console.log('📥 Loading dreams from Google Sheets...');

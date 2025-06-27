@@ -431,6 +431,15 @@ function navigateTo(pageId) {
       case 'dreams-list-form':
         loadDreamsData();
         break;
+      case 'expenses-to-income-report-form':
+        setupExpensesForm();
+        break;
+      case 'potential-business-partners-form':
+        setupPartnersForm();
+        break;
+      case 'potential-field-trainings-form':
+        setupClientsForm();
+        break;
       case 'user-management-form':
         if (currentAgent && currentAgent.role === 'admin') {
           loadUsers();
@@ -1378,9 +1387,73 @@ function loadDreamsData() {
     console.error('Cannot load dreams data: No current agent');
     return;
   }
-  
+
   console.log('Loading dreams data for', currentAgent.agentName);
   loadFormData('dreamsForm');
+}
+
+// Setup functions for multi-entry forms
+function setupExpensesForm() {
+  if (!currentAgent) return;
+
+  console.log('Setting up expenses form');
+  const form = document.getElementById('expensesForm');
+  if (!form) return;
+
+  const recordIdInput = form.querySelector('#expensesRecordId');
+  const agentNameInput = form.querySelector('#expensesAgentName');
+
+  if (recordIdInput) {
+    recordIdInput.value = `${currentAgent.agentName}_expensesForm`;
+  }
+  if (agentNameInput) {
+    agentNameInput.value = currentAgent.agentName;
+  }
+
+  // Load existing data
+  loadFormData('expensesForm');
+}
+
+function setupPartnersForm() {
+  if (!currentAgent) return;
+
+  console.log('Setting up partners form');
+  const form = document.getElementById('partnersForm');
+  if (!form) return;
+
+  const recordIdInput = form.querySelector('#partnersRecordId');
+  const agentNameInput = form.querySelector('#partnersAgentName');
+
+  if (recordIdInput) {
+    recordIdInput.value = `${currentAgent.agentName}_partnersForm`;
+  }
+  if (agentNameInput) {
+    agentNameInput.value = currentAgent.agentName;
+  }
+
+  // Load existing data
+  loadFormData('partnersForm');
+}
+
+function setupClientsForm() {
+  if (!currentAgent) return;
+
+  console.log('Setting up clients form');
+  const form = document.getElementById('clientsForm');
+  if (!form) return;
+
+  const recordIdInput = form.querySelector('#clientsRecordId');
+  const agentNameInput = form.querySelector('#clientsAgentName');
+
+  if (recordIdInput) {
+    recordIdInput.value = `${currentAgent.agentName}_clientsForm`;
+  }
+  if (agentNameInput) {
+    agentNameInput.value = currentAgent.agentName;
+  }
+
+  // Load existing data
+  loadFormData('clientsForm');
 }
 
 // Load dashboard statistics
