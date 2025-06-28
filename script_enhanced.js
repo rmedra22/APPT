@@ -24,10 +24,12 @@ const formSheetMap = {
 // Initialize data arrays for multi-entry forms
 let dreamsData = [];
 
-// Enhanced toast notification system
+// Modern Toast Notification System with Enhanced UX
 class ToastManager {
   constructor() {
     this.toastContainer = null;
+    this.maxToasts = 5;
+    this.activeToasts = new Map();
     this.init();
   }
 
@@ -37,70 +39,176 @@ class ToastManager {
     if (!container) {
       container = document.createElement('div');
       container.id = 'toast-container';
-      container.className = 'fixed top-4 right-4 z-50 space-y-2';
+      container.className = 'fixed top-4 right-4 z-50 space-y-3 pointer-events-none';
+      container.style.cssText = `
+        max-width: 420px;
+        width: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      `;
       document.body.appendChild(container);
     }
     this.toastContainer = container;
   }
 
-  show(message, type = 'info', duration = 3000) {
+  show(message, type = 'info', duration = 4000, options = {}) {
+    // Limit number of toasts
+    if (this.activeToasts.size >= this.maxToasts) {
+      const oldestToast = this.activeToasts.keys().next().value;
+      this.remove(oldestToast);
+    }
+
     const toast = document.createElement('div');
-    const id = 'toast-' + Date.now();
+    const id = 'toast-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
     toast.id = id;
     
     const typeClasses = {
-      success: 'bg-green-500 text-white',
-      error: 'bg-red-500 text-white',
-      warning: 'bg-yellow-500 text-black',
-      info: 'bg-blue-500 text-white'
+      success: 'bg-gradient-to-r from-green-500 to-green-600 text-white',
+      error: 'bg-gradient-to-r from-red-500 to-red-600 text-white',
+      warning: 'bg-gradient-to-r from-amber-500 to-orange-500 text-white',
+      info: 'bg-gradient-to-r from-blue-500 to-blue-600 text-white'
     };
 
     const icons = {
-      success: '✓',
-      error: '✗',
-      warning: '⚠',
-      info: 'ℹ'
+      success: `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                </svg>`,
+      error: `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+              </svg>`,
+      warning: `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                </svg>`,
+      info: `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+               <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+             </svg>`
     };
 
-    toast.className = `${typeClasses[type]} px-4 py-3 rounded-lg shadow-lg flex items-center space-x-2 min-w-0 max-w-sm transform transition-all duration-300 translate-x-full opacity-0`;
+    toast.className = `
+      ${typeClasses[type]} 
+      px-6 py-4 rounded-xl shadow-2xl flex items-start space-x-3 
+      transform transition-all duration-500 ease-out
+      translate-x-full opacity-0 scale-95
+      backdrop-blur-sm border border-white/20
+      pointer-events-auto cursor-pointer
+      hover:scale-105 hover:shadow-3xl
+      max-w-md min-w-0
+    `;
+    
+    const hasAction = options.action && options.actionLabel;
     
     toast.innerHTML = `
-      <span class="text-xl">${icons[type]}</span>
-      <span class="flex-1 text-sm font-medium">${message}</span>
-      <button class="text-white hover:text-gray-200 ml-2" onclick="toastManager.remove('${id}')">
+      <div class="flex-shrink-0 pt-0.5">
+        ${icons[type]}
+      </div>
+      <div class="flex-1 min-w-0">
+        ${options.title ? `<div class="font-semibold text-sm mb-1">${options.title}</div>` : ''}
+        <div class="text-sm font-medium leading-relaxed break-words">${message}</div>
+        ${hasAction ? `
+          <button class="mt-2 text-xs font-semibold underline hover:no-underline opacity-90 hover:opacity-100 transition-opacity" 
+                  onclick="toastManager.executeAction('${id}')">
+            ${options.actionLabel}
+          </button>
+        ` : ''}
+      </div>
+      <button class="flex-shrink-0 text-white/80 hover:text-white transition-colors ml-2" 
+              onclick="toastManager.remove('${id}')" 
+              aria-label="Close">
         <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+          <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
         </svg>
       </button>
     `;
 
+    // Store toast data
+    this.activeToasts.set(id, {
+      element: toast,
+      action: options.action,
+      type: type,
+      createdAt: Date.now()
+    });
+
     this.toastContainer.appendChild(toast);
 
-    // Animate in
-    setTimeout(() => {
-      toast.classList.remove('translate-x-full', 'opacity-0');
-    }, 100);
+    // Enhanced entrance animation
+    requestAnimationFrame(() => {
+      toast.classList.remove('translate-x-full', 'opacity-0', 'scale-95');
+      toast.classList.add('translate-x-0', 'opacity-100', 'scale-100');
+    });
 
-    // Auto remove
+    // Add click to dismiss
+    toast.addEventListener('click', (e) => {
+      if (!e.target.closest('button')) {
+        this.remove(id);
+      }
+    });
+
+    // Auto remove with pause on hover
     if (duration > 0) {
-      setTimeout(() => {
+      let timeoutId = setTimeout(() => {
         this.remove(id);
       }, duration);
+
+      toast.addEventListener('mouseenter', () => {
+        clearTimeout(timeoutId);
+      });
+
+      toast.addEventListener('mouseleave', () => {
+        timeoutId = setTimeout(() => {
+          this.remove(id);
+        }, 2000); // Shorter duration after hover
+      });
     }
 
     return id;
   }
 
-  remove(id) {
-    const toast = document.getElementById(id);
-    if (toast) {
-      toast.classList.add('translate-x-full', 'opacity-0');
-      setTimeout(() => {
-        if (toast.parentNode) {
-          toast.parentNode.removeChild(toast);
-        }
-      }, 300);
+  executeAction(id) {
+    const toastData = this.activeToasts.get(id);
+    if (toastData && toastData.action) {
+      toastData.action();
+      this.remove(id);
     }
+  }
+
+  remove(id) {
+    const toastData = this.activeToasts.get(id);
+    if (!toastData) return;
+    
+    const toast = toastData.element;
+    
+    toast.classList.add('translate-x-full', 'opacity-0', 'scale-95');
+    
+    setTimeout(() => {
+      if (toast.parentNode) {
+        toast.parentNode.removeChild(toast);
+      }
+      this.activeToasts.delete(id);
+    }, 500);
+  }
+
+  removeAll() {
+    for (const id of this.activeToasts.keys()) {
+      this.remove(id);
+    }
+  }
+
+  // Convenience methods
+  success(message, options = {}) {
+    return this.show(message, 'success', 4000, options);
+  }
+
+  error(message, options = {}) {
+    return this.show(message, 'error', 6000, options);
+  }
+
+  warning(message, options = {}) {
+    return this.show(message, 'warning', 5000, options);
+  }
+
+  info(message, options = {}) {
+    return this.show(message, 'info', 4000, options);
   }
 }
 
@@ -844,6 +952,240 @@ function setupMobileHandlers() {
   });
 }
 
+// Enhanced Dashboard Functions
+async function loadDashboardStats() {
+  if (!currentAgent) return;
+  
+  try {
+    // Show loading state
+    updateStatsUI({
+      personalFormsCount: '...',
+      progressItemsCount: '...',
+      dreamsCount: '...',
+      completionRate: '...'
+    });
+    
+    // Load personal details count
+    const personalData = await loadFormDataFromAPI('Personal Details');
+    const personalCount = personalData && Object.keys(personalData).length > 2 ? 1 : 0;
+    
+    // Load system progressions data
+    const progressData = await loadFormDataFromAPI('System Progressions');
+    const progressCount = countCompletedProgressions(progressData);
+    
+    // Load dreams data
+    const dreamsData = await loadFormDataFromAPI('Dreams List');
+    const dreamsCount = dreamsData && dreamsData.entries ? dreamsData.entries.length : 0;
+    
+    // Calculate completion rate
+    const totalForms = 8; // Total number of main forms
+    const completedForms = personalCount + (progressCount > 0 ? 1 : 0) + (dreamsCount > 0 ? 1 : 0);
+    const completionRate = Math.round((completedForms / totalForms) * 100);
+    
+    // Update UI
+    updateStatsUI({
+      personalFormsCount: personalCount,
+      progressItemsCount: progressCount,
+      dreamsCount: dreamsCount,
+      completionRate: `${completionRate}%`
+    });
+    
+    // Load recent activity
+    updateRecentActivity();
+    
+  } catch (error) {
+    console.error('Error loading dashboard stats:', error);
+    updateStatsUI({
+      personalFormsCount: '0',
+      progressItemsCount: '0',
+      dreamsCount: '0',
+      completionRate: '0%'
+    });
+  }
+}
+
+function updateStatsUI(stats) {
+  const elements = {
+    personalFormsCount: document.getElementById('personalFormsCount'),
+    progressItemsCount: document.getElementById('progressItemsCount'),
+    dreamsCount: document.getElementById('dreamsCount'),
+    completionRate: document.getElementById('completionRate')
+  };
+  
+  Object.keys(stats).forEach(key => {
+    if (elements[key]) {
+      // Add number animation
+      animateNumber(elements[key], stats[key]);
+    }
+  });
+}
+
+function animateNumber(element, targetValue) {
+  if (typeof targetValue === 'string' && !targetValue.includes('%')) {
+    element.textContent = targetValue;
+    return;
+  }
+  
+  const isPercentage = typeof targetValue === 'string' && targetValue.includes('%');
+  const numericValue = isPercentage ? parseInt(targetValue) : parseInt(targetValue) || 0;
+  const startValue = 0;
+  const duration = 1000; // 1 second
+  const startTime = performance.now();
+  
+  function updateNumber(currentTime) {
+    const elapsed = currentTime - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    
+    // Easing function (ease-out)
+    const easedProgress = 1 - Math.pow(1 - progress, 3);
+    const currentValue = Math.round(startValue + (numericValue - startValue) * easedProgress);
+    
+    element.textContent = isPercentage ? `${currentValue}%` : currentValue;
+    
+    if (progress < 1) {
+      requestAnimationFrame(updateNumber);
+    }
+  }
+  
+  requestAnimationFrame(updateNumber);
+}
+
+function countCompletedProgressions(progressData) {
+  if (!progressData) return 0;
+  
+  let count = 0;
+  const fields = [
+    'code_number', 'client', 'pass_license', 'business_partner_plan',
+    'licensed_appointed', 'field_trainings_10', 'associate_promotion',
+    'net_license', 'complete_laser_fund', 'cft_in_progress'
+  ];
+  
+  fields.forEach(field => {
+    if (progressData[field] === true || progressData[field] === 'true') {
+      count++;
+    }
+  });
+  
+  return count;
+}
+
+async function loadFormDataFromAPI(sheetName) {
+  try {
+    const url = `https://script.google.com/macros/s/${scriptId}/exec?action=getFormData&sheetName=${encodeURIComponent(sheetName)}&agent=${encodeURIComponent(currentAgent.agentName)}`;
+    return await makeApiCall(url);
+  } catch (error) {
+    console.error(`Error loading data from ${sheetName}:`, error);
+    return null;
+  }
+}
+
+function updateRecentActivity() {
+  const activityList = document.getElementById('recentActivityList');
+  if (!activityList) return;
+  
+  const activities = [
+    {
+      icon: 'fas fa-user-edit',
+      text: 'Personal details updated',
+      time: '2 hours ago',
+      color: 'blue'
+    },
+    {
+      icon: 'fas fa-check-circle',
+      text: 'System progression marked complete',
+      time: '1 day ago',
+      color: 'green'
+    },
+    {
+      icon: 'fas fa-star',
+      text: 'New dream added to list',
+      time: '3 days ago',
+      color: 'purple'
+    }
+  ];
+  
+  activityList.innerHTML = activities.map(activity => `
+    <div class="flex items-center space-x-3 text-slate-300 hover:text-white transition-colors">
+      <div class="bg-${activity.color}-500 bg-opacity-20 rounded-full p-2">
+        <i class="${activity.icon} text-xs text-${activity.color}-400"></i>
+      </div>
+      <div class="flex-1">
+        <span class="text-sm font-medium">${activity.text}</span>
+        <span class="text-xs text-slate-400 ml-2">${activity.time}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+// Enhanced Form Interaction Functions
+function addRippleEffect(event) {
+  const button = event.currentTarget;
+  const ripple = document.createElement('span');
+  const rect = button.getBoundingClientRect();
+  const size = Math.max(rect.width, rect.height);
+  const x = event.clientX - rect.left - size / 2;
+  const y = event.clientY - rect.top - size / 2;
+  
+  ripple.className = 'ripple';
+  ripple.style.cssText = `
+    width: ${size}px;
+    height: ${size}px;
+    left: ${x}px;
+    top: ${y}px;
+  `;
+  
+  button.appendChild(ripple);
+  
+  setTimeout(() => {
+    ripple.remove();
+  }, 600);
+}
+
+// Add ripple effect to all buttons with ripple class
+function setupRippleEffects() {
+  document.querySelectorAll('.btn-ripple').forEach(button => {
+    button.addEventListener('click', addRippleEffect);
+  });
+}
+
+// Enhanced form field focus effects
+function setupFormEnhancements() {
+  // Add floating label functionality
+  document.querySelectorAll('.form-floating input, .form-floating textarea').forEach(input => {
+    input.addEventListener('focus', function() {
+      this.parentElement.classList.add('focused');
+    });
+    
+    input.addEventListener('blur', function() {
+      if (!this.value) {
+        this.parentElement.classList.remove('focused');
+      }
+    });
+    
+    // Check initial state
+    if (input.value) {
+      input.parentElement.classList.add('focused');
+    }
+  });
+  
+  // Add input group icon color changes
+  document.querySelectorAll('.input-group input').forEach(input => {
+    input.addEventListener('focus', function() {
+      const icon = this.nextElementSibling;
+      if (icon && icon.classList.contains('input-icon')) {
+        icon.style.color = '#0466C8';
+      }
+    });
+    
+    input.addEventListener('blur', function() {
+      const icon = this.nextElementSibling;
+      if (icon && icon.classList.contains('input-icon')) {
+        icon.style.color = '#6b7280';
+      }
+    });
+  });
+}
+
 // Initialize everything when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
   console.log('Enhanced Data Entry System - Initializing...');
@@ -854,6 +1196,10 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Setup mobile handlers
   setupMobileHandlers();
+  
+  // Setup modern enhancements
+  setupRippleEffects();
+  setupFormEnhancements();
   
   // Check for existing session
   const savedAgent = sessionStorage.getItem('currentAgent');

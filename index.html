@@ -828,8 +828,118 @@
 
       <div class="flex-grow p-6">
         <div id="dashboardPageContent" class="page-content hidden">
-          <h1 class="page-title">Welcome to GFI Data Entry System</h1>
-          <p class="page-description">Please use the navigation menu to access the forms and manage your data.</p>
+          <div class="dashboard-header mb-8">
+            <h1 class="page-title text-4xl font-bold text-white mb-4">Welcome to GFI Data Entry System</h1>
+            <p class="page-description text-lg text-slate-300 mb-6">Manage your agent data and track your progress efficiently</p>
+            
+            <!-- Quick Stats Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              <div class="stat-card bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-2xl shadow-xl transform hover:scale-105 transition-all duration-300">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="text-blue-100 text-sm font-medium uppercase tracking-wide">Personal Forms</p>
+                    <p class="text-3xl font-bold" id="personalFormsCount">-</p>
+                  </div>
+                  <div class="bg-blue-400 bg-opacity-30 rounded-full p-3">
+                    <i class="fas fa-user text-2xl"></i>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="stat-card bg-gradient-to-br from-green-500 to-green-600 text-white p-6 rounded-2xl shadow-xl transform hover:scale-105 transition-all duration-300">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="text-green-100 text-sm font-medium uppercase tracking-wide">Progress Items</p>
+                    <p class="text-3xl font-bold" id="progressItemsCount">-</p>
+                  </div>
+                  <div class="bg-green-400 bg-opacity-30 rounded-full p-3">
+                    <i class="fas fa-chart-line text-2xl"></i>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="stat-card bg-gradient-to-br from-purple-500 to-purple-600 text-white p-6 rounded-2xl shadow-xl transform hover:scale-105 transition-all duration-300">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="text-purple-100 text-sm font-medium uppercase tracking-wide">Dreams Listed</p>
+                    <p class="text-3xl font-bold" id="dreamsCount">-</p>
+                  </div>
+                  <div class="bg-purple-400 bg-opacity-30 rounded-full p-3">
+                    <i class="fas fa-lightbulb text-2xl"></i>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="stat-card bg-gradient-to-br from-orange-500 to-orange-600 text-white p-6 rounded-2xl shadow-xl transform hover:scale-105 transition-all duration-300">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="text-orange-100 text-sm font-medium uppercase tracking-wide">Completion Rate</p>
+                    <p class="text-3xl font-bold" id="completionRate">-</p>
+                  </div>
+                  <div class="bg-orange-400 bg-opacity-30 rounded-full p-3">
+                    <i class="fas fa-trophy text-2xl"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="quick-actions mb-8">
+              <h3 class="text-xl font-semibold text-white mb-4">Quick Actions</h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <button onclick="navigateTo('personal-details')" class="btn-glass p-4 rounded-xl text-left hover:bg-white/20 transition-all duration-300 group">
+                  <div class="flex items-center space-x-3">
+                    <div class="bg-blue-500 bg-opacity-20 rounded-lg p-3 group-hover:bg-opacity-30 transition-all">
+                      <i class="fas fa-user-edit text-blue-400 text-lg"></i>
+                    </div>
+                    <div>
+                      <h4 class="font-semibold text-white">Update Personal Details</h4>
+                      <p class="text-sm text-slate-300">Edit your profile information</p>
+                    </div>
+                  </div>
+                </button>
+                
+                <button onclick="navigateTo('system-progressions')" class="btn-glass p-4 rounded-xl text-left hover:bg-white/20 transition-all duration-300 group">
+                  <div class="flex items-center space-x-3">
+                    <div class="bg-green-500 bg-opacity-20 rounded-lg p-3 group-hover:bg-opacity-30 transition-all">
+                      <i class="fas fa-tasks text-green-400 text-lg"></i>
+                    </div>
+                    <div>
+                      <h4 class="font-semibold text-white">Track Progress</h4>
+                      <p class="text-sm text-slate-300">Update your system progression</p>
+                    </div>
+                  </div>
+                </button>
+                
+                <button onclick="navigateTo('dreams-list')" class="btn-glass p-4 rounded-xl text-left hover:bg-white/20 transition-all duration-300 group">
+                  <div class="flex items-center space-x-3">
+                    <div class="bg-purple-500 bg-opacity-20 rounded-lg p-3 group-hover:bg-opacity-30 transition-all">
+                      <i class="fas fa-star text-purple-400 text-lg"></i>
+                    </div>
+                    <div>
+                      <h4 class="font-semibold text-white">Manage Dreams</h4>
+                      <p class="text-sm text-slate-300">Add or update your goals</p>
+                    </div>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="recent-activity">
+              <h3 class="text-xl font-semibold text-white mb-4">Recent Activity</h3>
+              <div class="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
+                <div id="recentActivityList" class="space-y-3">
+                  <div class="flex items-center space-x-3 text-slate-300">
+                    <div class="bg-blue-500 bg-opacity-20 rounded-full p-2">
+                      <i class="fas fa-clock text-xs"></i>
+                    </div>
+                    <span class="text-sm">Loading recent activity...</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div id="personal-details-form" class="page-content hidden">
