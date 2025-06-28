@@ -114,6 +114,14 @@ function doGet(e) {
       return handleBulkUpdateEntries(e);
     }
     
+    // Handle create user (admin only)
+    if (action === 'createUser') {
+      const result = handleCreateUser(e);
+      return ContentService.createTextOutput(
+        callback + '(' + JSON.stringify(result) + ');'
+      ).setMimeType(ContentService.MimeType.JAVASCRIPT);
+    }
+    
     // Handle change password (admin only)
     if (action === 'changePassword') {
       const result = handleChangePassword(e);
@@ -1111,6 +1119,82 @@ function getUsers(e) {
   } catch (error) {
     Logger.log('Error in getUsers: %s', error.toString());
     return jsonpResponse({ status: 'error', message: 'Error getting users: ' + error.toString() }, callback);
+  }
+}
+
+// Handle create user (admin only)
+function handleCreateUser(e) {
+  try {
+    const agentName = e.parameter.agentName;
+    const password = e.parameter.password;
+    const role = e.parameter.role || 'user';
+    const avatarUrl = e.parameter.avatarUrl || '';
+    
+    Logger.log('handleCreateUser called with agentName: ' + agentName + ', role: ' + role);
+    
+    // Validate inputs
+    if (!agentName || !password) {
+      return { status: 'error', message: 'Agent name and password are required' };
+    }
+    
+    if (password.length < 4) {
+      return { status: 'error', message: 'Password must be at least 4 characters long' };
+    }
+    
+    // Get the Agents sheet
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const agentSheet = ss.getSheetByName('Agents');
+    if (!agentSheet) {
+      return { status: 'error', message: 'Agents sheet not found' };
+    }
+    
+    // Check if user already exists
+    const lastRow = agentSheet.getLastRow();
+    if (lastRow > 1) {
+      const existingData = agentSheet.getRange(2, 1, lastRow - 1, agentSheet.getLastColumn()).getValues();
+      const agentNameColIndex = 0; // Assuming agentName is in the first column
+      
+      for (let i = 0; i < existingData.length; i++) {
+        if (existingData[i][agentNameColIndex] && 
+            String(existingData[i][agentNameColIndex]).toLowerCase() === agentName.toLowerCase()) {
+          return { status: 'error', message: 'User with this name already exists' };
+        }
+      }
+    }
+    
+    // Get headers to determine column structure
+    const headers = agentSheet.getRange(1, 1, 1, agentSheet.getLastColumn()).getValues()[0];
+    const agentNameColIndex = headers.indexOf('agentName');
+    const passwordColIndex = headers.indexOf('password');
+    const roleColIndex = headers.indexOf('role');
+    const lastUpdatedColIndex = headers.indexOf('lastUpdated');
+    const avatarUrlColIndex = headers.indexOf('avatarUrl');
+    
+    // Prepare row data
+    const newRow = new Array(headers.length).fill('');
+    if (agentNameColIndex !== -1) newRow[agentNameColIndex] = agentName;
+    if (passwordColIndex !== -1) newRow[passwordColIndex] = password;
+    if (roleColIndex !== -1) newRow[roleColIndex] = role;
+    if (lastUpdatedColIndex !== -1) newRow[lastUpdatedColIndex] = new Date().toISOString();
+    if (avatarUrlColIndex !== -1) newRow[avatarUrlColIndex] = avatarUrl;
+    
+    // Add the new user
+    agentSheet.appendRow(newRow);
+    
+    Logger.log('User created successfully: ' + agentName);
+    return { 
+      status: 'success', 
+      message: 'User created successfully',
+      user: {
+        agentName: agentName,
+        role: role,
+        lastUpdated: new Date().toISOString()
+      }
+    };
+    
+  } catch (error) {
+    Logger.log('Error in handleCreateUser: ' + error.toString());
+    return { status: 'error', message: 'Error creating user: ' + error.toString() };
   }
 }
 

@@ -8,7 +8,7 @@ let autoSaveEnabled = true;
 let isLoading = false; // Loading state tracker
 
 // !!! IMPORTANT: REPLACE 'YOUR_DEPLOYMENT_ID_HERE' with your actual Google Apps Script Web App Deployment ID
-const scriptId = 'AKfycbziAMY0nnxk6taGh1tHiKZq6Ijt8j4MHecktOo70lbLFhb-5cwU5NCWhTpgvUaXHkLq'; // Replace with your actual script ID
+const scriptId = 'AKfycbx8eOZpCu1QKzC362PEUx5T5wqjmkmwlhcxHSNW5ztYsi8wuOWDqHv0uv8JGKVodNtY'; // Replace with your actual script ID
 
 const formSheetMap = {
   'personalForm': 'Personal Details',
@@ -215,19 +215,55 @@ class ToastManager {
 // Initialize toast manager
 const toastManager = new ToastManager();
 
-// API helper functions
+// Debug function to test API connectivity
+async function testApiConnection() {
+  try {
+    console.log('🧪 Testing API connection...');
+    toastManager.info('Testing API connection...', { title: 'Debug Test' });
+    
+    const testUrl = `https://script.google.com/macros/s/${scriptId}/exec?action=getUsers`;
+    console.log('🔗 Test URL:', testUrl);
+    
+    const response = await makeApiCall(testUrl);
+    console.log('✅ Test response:', response);
+    
+    toastManager.success('API connection successful!', { title: 'Debug Test' });
+    return response;
+  } catch (error) {
+    console.error('❌ API test failed:', error);
+    toastManager.error('API test failed: ' + error.message, { title: 'Debug Test' });
+    throw error;
+  }
+}
+
+// Make testApiConnection available globally for debugging
+window.testApiConnection = testApiConnection;
+
+// Enhanced API helper functions
 async function makeApiCall(url) {
   return new Promise((resolve, reject) => {
-    const callbackName = 'apiCallback_' + new Date().getTime();
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 8);
+    const callbackName = `apiCallback_${timestamp}_${random}`;
     
-    // Set up the callback
+    console.log(`🔗 Making API call: ${url.split('?')[0]} with callback: ${callbackName}`);
+    
+    // Set up the callback with enhanced error handling
     window[callbackName] = function(response) {
-      // Clean up
-      delete window[callbackName];
-      const script = document.querySelector(`script[src*="${callbackName}"]`);
-      if (script) {
-        script.remove();
-      }
+      console.log(`📥 API response received for ${callbackName}:`, response);
+      
+      // Clean up after a short delay to ensure callback completes
+      setTimeout(() => {
+        try {
+          delete window[callbackName];
+          const script = document.querySelector(`script[src*="${callbackName}"]`);
+          if (script && script.parentNode) {
+            script.parentNode.removeChild(script);
+          }
+        } catch (cleanupError) {
+          console.warn('Cleanup error:', cleanupError);
+        }
+      }, 100);
       
       resolve(response);
     };
@@ -235,25 +271,51 @@ async function makeApiCall(url) {
     // Create and append script
     const script = document.createElement('script');
     const separator = url.includes('?') ? '&' : '?';
-    script.src = `${url}${separator}callback=${callbackName}&t=${new Date().getTime()}`;
+    const fullUrl = `${url}${separator}callback=${callbackName}&t=${timestamp}`;
+    script.src = fullUrl;
     
-    script.onerror = function() {
+    // Enhanced error handling
+    script.onerror = function(error) {
+      console.error(`❌ Script load error for ${callbackName}:`, error);
+      
       // Clean up on error
-      delete window[callbackName];
-      script.remove();
-      reject(new Error('Network error: Failed to load script'));
+      setTimeout(() => {
+        try {
+          delete window[callbackName];
+          if (script.parentNode) {
+            script.parentNode.removeChild(script);
+          }
+        } catch (cleanupError) {
+          console.warn('Error cleanup failed:', cleanupError);
+        }
+      }, 100);
+      
+      reject(new Error(`Network error: Failed to load script from ${url}`));
     };
     
-    // Set timeout for API calls
-    setTimeout(() => {
+    // Set longer timeout for API calls with better error message
+    const timeoutId = setTimeout(() => {
       if (window[callbackName]) {
+        console.warn(`⏰ API call timeout for ${callbackName}`);
+        
         delete window[callbackName];
-        script.remove();
-        reject(new Error('Request timeout'));
+        if (script.parentNode) {
+          script.parentNode.removeChild(script);
+        }
+        reject(new Error(`Request timeout after 45 seconds for: ${url}`));
       }
-    }, 30000); // 30 second timeout
+    }, 45000); // 45 second timeout
     
+    // Clear timeout if request completes
+    const originalCallback = window[callbackName];
+    window[callbackName] = function(response) {
+      clearTimeout(timeoutId);
+      originalCallback(response);
+    };
+    
+    // Add script to document
     document.head.appendChild(script);
+    console.log(`📡 Script appended for ${callbackName}: ${fullUrl}`);
   });
 }
 
@@ -957,7 +1019,14 @@ async function loadDashboardStats() {
   if (!currentAgent) return;
   
   try {
-    // Show loading state
+    console.log('📊 Loading dashboard stats for:', currentAgent.agentName);
+    
+    // Show user-friendly loading notification
+    toastManager.info('Loading your dashboard data...', {
+      title: 'Dashboard Update'
+    });
+    
+    // Show loading state with animation
     updateStatsUI({
       personalFormsCount: '...',
       progressItemsCount: '...',
@@ -965,36 +1034,68 @@ async function loadDashboardStats() {
       completionRate: '...'
     });
     
-    // Load personal details count
-    const personalData = await loadFormDataFromAPI('Personal Details');
-    const personalCount = personalData && Object.keys(personalData).length > 2 ? 1 : 0;
+    // Create array of promises for parallel loading
+    const dataPromises = [
+      loadFormDataFromAPI('Personal Details'),
+      loadFormDataFromAPI('System Progressions'),
+      loadFormDataFromAPI('Dreams List'),
+      loadFormDataFromAPI('Expenses to Income Report'),
+      loadFormDataFromAPI('Potential Business Partners'),
+      loadFormDataFromAPI('Potential Field Trainings'),
+      loadFormDataFromAPI('Licensing Checklist'),
+      loadFormDataFromAPI('Career Progression')
+    ];
     
-    // Load system progressions data
-    const progressData = await loadFormDataFromAPI('System Progressions');
-    const progressCount = countCompletedProgressions(progressData);
+    // Load all data in parallel for better performance
+    const [
+      personalData,
+      progressData,
+      dreamsData,
+      expensesData,
+      partnersData,
+      trainingsData,
+      licensingData,
+      careerData
+    ] = await Promise.all(dataPromises);
     
-    // Load dreams data
-    const dreamsData = await loadFormDataFromAPI('Dreams List');
-    const dreamsCount = dreamsData && dreamsData.entries ? dreamsData.entries.length : 0;
-    
-    // Calculate completion rate
-    const totalForms = 8; // Total number of main forms
-    const completedForms = personalCount + (progressCount > 0 ? 1 : 0) + (dreamsCount > 0 ? 1 : 0);
-    const completionRate = Math.round((completedForms / totalForms) * 100);
-    
-    // Update UI
-    updateStatsUI({
-      personalFormsCount: personalCount,
-      progressItemsCount: progressCount,
-      dreamsCount: dreamsCount,
-      completionRate: `${completionRate}%`
+    console.log('📈 Raw data loaded:', {
+      personal: personalData,
+      progress: progressData,
+      dreams: dreamsData
     });
     
-    // Load recent activity
-    updateRecentActivity();
+    // Calculate statistics
+    const stats = calculateDashboardStats({
+      personalData,
+      progressData,
+      dreamsData,
+      expensesData,
+      partnersData,
+      trainingsData,
+      licensingData,
+      careerData
+    });
+    
+    console.log('📊 Calculated stats:', stats);
+    
+    // Update UI with real data
+    updateStatsUI(stats);
+    
+    // Load recent activity with real data
+    updateRecentActivity({
+      personalData,
+      progressData,
+      dreamsData,
+      expensesData
+    });
+    
+    // Show success notification
+    toastManager.success('Dashboard updated successfully!', {
+      title: 'Data Loaded'
+    });
     
   } catch (error) {
-    console.error('Error loading dashboard stats:', error);
+    console.error('❌ Error loading dashboard stats:', error);
     updateStatsUI({
       personalFormsCount: '0',
       progressItemsCount: '0',
@@ -1002,6 +1103,56 @@ async function loadDashboardStats() {
       completionRate: '0%'
     });
   }
+}
+
+function calculateDashboardStats(data) {
+  const {
+    personalData,
+    progressData,
+    dreamsData,
+    expensesData,
+    partnersData,
+    trainingsData,
+    licensingData,
+    careerData
+  } = data;
+  
+  // Count completed forms
+  let completedForms = 0;
+  const totalForms = 8;
+  
+  // Personal Details - check if basic info is filled
+  const personalCount = personalData && (
+    personalData.name || 
+    personalData.email || 
+    personalData.agent_id
+  ) ? 1 : 0;
+  completedForms += personalCount;
+  
+  // System Progressions - count completed items
+  const progressCount = countCompletedProgressions(progressData);
+  if (progressCount > 0) completedForms++;
+  
+  // Dreams List - count entries
+  const dreamsCount = dreamsData && dreamsData.entries ? dreamsData.entries.length : 0;
+  if (dreamsCount > 0) completedForms++;
+  
+  // Other forms
+  if (expensesData && expensesData.entries && expensesData.entries.length > 0) completedForms++;
+  if (partnersData && partnersData.entries && partnersData.entries.length > 0) completedForms++;
+  if (trainingsData && trainingsData.entries && trainingsData.entries.length > 0) completedForms++;
+  if (licensingData && Object.keys(licensingData).length > 2) completedForms++;
+  if (careerData && Object.keys(careerData).length > 2) completedForms++;
+  
+  // Calculate completion rate
+  const completionRate = Math.round((completedForms / totalForms) * 100);
+  
+  return {
+    personalFormsCount: personalCount,
+    progressItemsCount: progressCount,
+    dreamsCount: dreamsCount,
+    completionRate: `${completionRate}%`
+  };
 }
 
 function updateStatsUI(stats) {
@@ -1021,22 +1172,32 @@ function updateStatsUI(stats) {
 }
 
 function animateNumber(element, targetValue) {
-  if (typeof targetValue === 'string' && !targetValue.includes('%')) {
+  if (!element) return;
+  
+  // Handle non-numeric values immediately
+  if (typeof targetValue === 'string' && !targetValue.includes('%') && isNaN(parseInt(targetValue))) {
     element.textContent = targetValue;
     return;
   }
   
   const isPercentage = typeof targetValue === 'string' && targetValue.includes('%');
   const numericValue = isPercentage ? parseInt(targetValue) : parseInt(targetValue) || 0;
+  
+  // If target is 0 or invalid, set immediately
+  if (numericValue === 0 || isNaN(numericValue)) {
+    element.textContent = isPercentage ? '0%' : '0';
+    return;
+  }
+  
   const startValue = 0;
-  const duration = 1000; // 1 second
+  const duration = 1500; // 1.5 seconds for better visual effect
   const startTime = performance.now();
   
   function updateNumber(currentTime) {
     const elapsed = currentTime - startTime;
     const progress = Math.min(elapsed / duration, 1);
     
-    // Easing function (ease-out)
+    // Easing function (ease-out cubic)
     const easedProgress = 1 - Math.pow(1 - progress, 3);
     const currentValue = Math.round(startValue + (numericValue - startValue) * easedProgress);
     
@@ -1044,6 +1205,9 @@ function animateNumber(element, targetValue) {
     
     if (progress < 1) {
       requestAnimationFrame(updateNumber);
+    } else {
+      // Ensure final value is exact
+      element.textContent = isPercentage ? `${numericValue}%` : numericValue;
     }
   }
   
@@ -1072,41 +1236,100 @@ function countCompletedProgressions(progressData) {
 async function loadFormDataFromAPI(sheetName) {
   try {
     const url = `https://script.google.com/macros/s/${scriptId}/exec?action=getFormData&sheetName=${encodeURIComponent(sheetName)}&agent=${encodeURIComponent(currentAgent.agentName)}`;
-    return await makeApiCall(url);
+    console.log(`📡 Fetching data from ${sheetName}...`);
+    
+    const response = await makeApiCall(url);
+    
+    if (response && response.status === 'error') {
+      console.warn(`⚠️ API error for ${sheetName}:`, response.message);
+      return null;
+    }
+    
+    console.log(`✅ Data loaded from ${sheetName}:`, response);
+    return response;
   } catch (error) {
-    console.error(`Error loading data from ${sheetName}:`, error);
+    console.error(`❌ Error loading data from ${sheetName}:`, error);
     return null;
   }
 }
 
-function updateRecentActivity() {
+function updateRecentActivity(data = {}) {
   const activityList = document.getElementById('recentActivityList');
   if (!activityList) return;
   
-  const activities = [
-    {
-      icon: 'fas fa-user-edit',
-      text: 'Personal details updated',
-      time: '2 hours ago',
-      color: 'blue'
-    },
-    {
-      icon: 'fas fa-check-circle',
-      text: 'System progression marked complete',
-      time: '1 day ago',
-      color: 'green'
-    },
-    {
-      icon: 'fas fa-star',
-      text: 'New dream added to list',
-      time: '3 days ago',
-      color: 'purple'
-    }
-  ];
+  const activities = [];
+  const { personalData, progressData, dreamsData, expensesData } = data;
   
-  activityList.innerHTML = activities.map(activity => `
-    <div class="flex items-center space-x-3 text-slate-300 hover:text-white transition-colors">
-      <div class="bg-${activity.color}-500 bg-opacity-20 rounded-full p-2">
+  // Generate real activity based on data
+  if (personalData && personalData.name) {
+    activities.push({
+      icon: 'fas fa-user-edit',
+      text: 'Personal details completed',
+      time: 'Recently',
+      color: 'blue'
+    });
+  }
+  
+  if (progressData) {
+    const completedCount = countCompletedProgressions(progressData);
+    if (completedCount > 0) {
+      activities.push({
+        icon: 'fas fa-check-circle',
+        text: `${completedCount} system progressions completed`,
+        time: 'Recently',
+        color: 'green'
+      });
+    }
+  }
+  
+  if (dreamsData && dreamsData.entries && dreamsData.entries.length > 0) {
+    activities.push({
+      icon: 'fas fa-star',
+      text: `${dreamsData.entries.length} dreams added to list`,
+      time: 'Recently',
+      color: 'purple'
+    });
+  }
+  
+  if (expensesData && expensesData.entries && expensesData.entries.length > 0) {
+    activities.push({
+      icon: 'fas fa-money-bill-wave',
+      text: `${expensesData.entries.length} expense entries recorded`,
+      time: 'Recently',
+      color: 'orange'
+    });
+  }
+  
+  // If no real data, show helpful prompts
+  if (activities.length === 0) {
+    activities.push(
+      {
+        icon: 'fas fa-info-circle',
+        text: 'Complete your personal details to get started',
+        time: 'Next step',
+        color: 'blue'
+      },
+      {
+        icon: 'fas fa-tasks',
+        text: 'Track your system progressions',
+        time: 'Recommended',
+        color: 'green'
+      },
+      {
+        icon: 'fas fa-lightbulb',
+        text: 'Add your dreams and goals',
+        time: 'Suggested',
+        color: 'purple'
+      }
+    );
+  }
+  
+  // Limit to 5 activities
+  const limitedActivities = activities.slice(0, 5);
+  
+  activityList.innerHTML = limitedActivities.map(activity => `
+    <div class="flex items-center space-x-3 text-slate-300 hover:text-white transition-colors cursor-pointer group">
+      <div class="bg-${activity.color}-500 bg-opacity-20 rounded-full p-2 group-hover:bg-opacity-30 transition-all">
         <i class="${activity.icon} text-xs text-${activity.color}-400"></i>
       </div>
       <div class="flex-1">
@@ -1279,8 +1502,27 @@ function setupEventListeners() {
   // Form submissions
   document.querySelectorAll('form').forEach(form => {
     if (form.id !== 'loginForm') {
+      // Special handling for create user form
+      if (form.id === 'createUserForm') {
+        form.addEventListener('submit', async function(e) {
+          e.preventDefault();
+          const formData = new FormData(this);
+          const userData = {
+            agentName: formData.get('agentName'),
+            password: formData.get('password'),
+            role: formData.get('role'),
+            avatarUrl: formData.get('avatarUrl')
+          };
+          
+          console.log('🎯 Create user form submitted:', userData);
+          const success = await createNewUser(userData);
+          if (success) {
+            console.log('✅ User created successfully');
+          }
+        });
+      }
       // Special handling for change password form
-      if (form.id === 'changePasswordForm') {
+      else if (form.id === 'changePasswordForm') {
         form.addEventListener('submit', async function(e) {
           e.preventDefault();
           const formData = new FormData(this);
@@ -1480,19 +1722,37 @@ async function loadAllPersonalDetails() {
 
 // Load users (admin only)
 async function loadUsers() {
+  console.log('🔍 loadUsers called - Current agent:', currentAgent);
+  
   if (!currentAgent || currentAgent.role !== 'admin') {
-    console.error('Cannot load users: Not an admin');
-    toastManager.show('Admin access required to view users', 'error');
+    console.error('❌ Cannot load users: Not an admin');
+    toastManager.error('Admin access required to view users');
     return;
   }
   
-  console.log('Loading users (admin view)');
+  if (!scriptId) {
+    console.error('❌ Script ID not defined');
+    toastManager.error('Configuration error: Script ID missing');
+    return;
+  }
+  
+  console.log('👥 Loading users for admin view...');
   
   try {
     const url = `https://script.google.com/macros/s/${scriptId}/exec?action=getUsers`;
+    console.log('📡 Making getUsers API call to:', url);
+    
     const response = await makeApiCall(url);
     
-    console.log('Users Response:', response);
+    console.log('👥 Users Response received:', response);
+    
+    if (!response) {
+      throw new Error('No response received from server');
+    }
+    
+    if (response.status === 'error') {
+      throw new Error(response.message || 'Server returned error status');
+    }
     
     if (response && response.status === 'success' && response.users) {
       const usersTableBody = document.querySelector('#usersTableBody');
@@ -1601,12 +1861,99 @@ async function loadUsers() {
       
       toastManager.show(`Loaded ${response.users.length} users`, 'success');
     } else {
-      console.error('Error loading users:', response ? response.message : 'Unknown error');
-      toastManager.show('Error loading users', 'error');
+      console.error('❌ Error loading users:', response ? response.message : 'Unknown error');
+      toastManager.error('Failed to load users: ' + (response ? response.message : 'Unknown error'));
     }
   } catch (error) {
-    console.error('Error loading users:', error);
-    handleApiError(error, 'loading users');
+    console.error('❌ Error in loadUsers function:', error);
+    
+    // Show specific error message based on error type
+    if (error.message.includes('callback') || error.message.includes('not defined')) {
+      toastManager.error('Connection error: Please refresh the page and try again');
+    } else if (error.message.includes('timeout')) {
+      toastManager.error('Request timed out: Please check your internet connection');
+    } else {
+      toastManager.error('Failed to load users: ' + error.message);
+    }
+    
+    // Show fallback message in the users table
+    const usersTableBody = document.querySelector('#usersTableBody');
+    if (usersTableBody) {
+      usersTableBody.innerHTML = `
+        <tr>
+          <td colspan="4" class="text-center py-8 text-red-500">
+            <i class="fas fa-exclamation-triangle text-4xl mb-2"></i>
+            <p>Error loading users</p>
+            <p class="text-sm text-gray-500 mt-2">${error.message}</p>
+            <button onclick="loadUsers()" class="mt-3 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+              <i class="fas fa-refresh mr-2"></i>Retry
+            </button>
+          </td>
+        </tr>
+      `;
+    }
+  }
+}
+
+// Create new user functionality (admin only)
+async function createNewUser(formData) {
+  if (!currentAgent || currentAgent.role !== 'admin') {
+    console.error('❌ Cannot create user: Not an admin');
+    toastManager.error('Admin access required to create users');
+    return false;
+  }
+  
+  console.log('👤 Creating new user:', formData);
+  
+  try {
+    // Validate required fields
+    if (!formData.agentName || !formData.password) {
+      toastManager.error('Agent name and password are required');
+      return false;
+    }
+    
+    if (formData.password.length < 4) {
+      toastManager.error('Password must be at least 4 characters long');
+      return false;
+    }
+    
+    // Prepare the API call
+    const url = `https://script.google.com/macros/s/${scriptId}/exec?action=createUser&agentName=${encodeURIComponent(formData.agentName)}&password=${encodeURIComponent(formData.password)}&role=${encodeURIComponent(formData.role || 'user')}&avatarUrl=${encodeURIComponent(formData.avatarUrl || '')}`;
+    
+    console.log('📡 Creating user via API...');
+    toastManager.info('Creating new user...', { title: 'User Management' });
+    
+    const response = await makeApiCall(url);
+    console.log('👤 Create user response:', response);
+    
+    if (response && response.status === 'success') {
+      toastManager.success(`User "${formData.agentName}" created successfully!`, { 
+        title: 'User Created' 
+      });
+      
+      // Reload the users list to show the new user
+      await loadUsers();
+      
+      // Clear the form
+      const form = document.getElementById('createUserForm');
+      if (form) {
+        form.reset();
+      }
+      
+      // Update the user dropdown for password changes
+      populateUserDropdown();
+      
+      return true;
+    } else {
+      const errorMsg = response?.message || 'Unknown error occurred';
+      toastManager.error('Failed to create user: ' + errorMsg);
+      return false;
+    }
+    
+  } catch (error) {
+    console.error('❌ Error creating user:', error);
+    toastManager.error('Error creating user: ' + error.message);
+    return false;
   }
 }
 

@@ -1114,6 +1114,12 @@ h1, h2, h3, h4, h5, h6 {
   .form-grid {
     grid-template-columns: repeat(2, 1fr) !important;
   }
+  
+  /* Ensure proper container width */
+  .main-content {
+    margin-left: 260px !important;
+    width: calc(100vw - 260px) !important;
+  }
 }
 
 @media (max-width: 768px) {
@@ -1427,9 +1433,10 @@ h1, h2, h3, h4, h5, h6 {
   background: transparent !important;
   box-shadow: none !important;
   border: none !important;
-  padding: var(--space-6) !important;
+  padding: 0 !important;
   margin: 0 auto !important;
   max-width: 1200px !important;
+  width: 100% !important;
 }
 
 /* Form Grid Consistency */
@@ -1483,4 +1490,29 @@ p, span, div, label, td, th {
 
 .form-container .section-title {
   color: #f1f5f9 !important;
+}
+
+/* User Management Form Specific Alignment */
+#user-management-form {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+#user-management-form .form-container {
+  width: 100% !important;
+  max-width: 1200px !important;
+  margin: 0 auto !important;
+  padding: 0 !important;
+}
+
+#user-management-form .form-section {
+  width: 100% !important;
+  margin-bottom: var(--space-8) !important;
+}
+
+#user-management-form .form-grid {
+  width: 100% !important;
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)) !important;
+  gap: var(--space-6) !important;
 }

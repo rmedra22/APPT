@@ -1720,10 +1720,6 @@
             </div>
         </div>
 
-      </div>
-    </div>
-  </div>
-
         <!-- User Management Form (Admin Only) -->
         <div id="user-management-form" class="page-content hidden">
           <div class="form-container">
@@ -1839,6 +1835,10 @@
             </div>
           </div>
         </div>
+
+      </div>
+    </div>
+  </div>
 
       </div>
     </div>
@@ -1997,7 +1997,7 @@
     async function debugAgentsData() {
       console.log('🔍 Debugging Agents sheet data...');
       try {
-        const scriptId = 'AKfycbziAMY0nnxk6taGh1tHiKZq6Ijt8j4MHecktOo70lbLFhb-5cwU5NCWhTpgvUaXHkLq';
+        const scriptId = 'AKfycbx8eOZpCu1QKzC362PEUx5T5wqjmkmwlhcxHSNW5ztYsi8wuOWDqHv0uv8JGKVodNtY';
         const url = `https://script.google.com/macros/s/${scriptId}/exec?action=debugAgents`;
         
         const response = await makeApiCall(url);
@@ -2546,7 +2546,7 @@
         console.log('📤 Sending bulk update data:', bulkUpdateData);
 
         // Use the bulk update API endpoint
-        const scriptId = window.scriptId || 'AKfycbziAMY0nnxk6taGh1tHiKZq6Ijt8j4MHecktOo70lbLFhb-5cwU5NCWhTpgvUaXHkLq';
+        const scriptId = window.scriptId || 'AKfycbx8eOZpCu1QKzC362PEUx5T5wqjmkmwlhcxHSNW5ztYsi8wuOWDqHv0uv8JGKVodNtY';
         const url = `https://script.google.com/macros/s/${scriptId}/exec?action=bulkUpdateEntries&data=${encodeURIComponent(JSON.stringify(bulkUpdateData))}`;
         
         console.log('📡 Making API call to:', url.substring(0, 100) + '...');
