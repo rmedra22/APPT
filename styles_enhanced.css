@@ -282,7 +282,7 @@ select:focus {
   display: block;
   margin-bottom: var(--space-2);
   font-weight: 600;
-  color: #374151;
+  color: #e2e8f0;
   font-size: var(--text-sm);
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -294,14 +294,21 @@ select:focus {
 .form-group select {
   width: 100%;
   padding: var(--space-4) var(--space-4);
-  border: 2px solid #e5e7eb;
+  border: 2px solid #475569;
   border-radius: var(--radius-xl);
   font-size: var(--text-base);
   font-family: inherit;
-  background: #f9fafb;
+  background: #334155;
+  color: #e2e8f0;
   transition: all var(--transition-normal);
   position: relative;
   box-shadow: var(--shadow-inner);
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+  color: #94a3b8;
+  opacity: 1;
 }
 
 .form-group input:focus,
@@ -309,9 +316,10 @@ select:focus {
 .form-group select:focus {
   outline: none;
   border-color: #0466C8;
-  background: white;
+  background: #475569;
+  color: #f1f5f9;
   transform: translateY(-2px);
-  box-shadow: var(--shadow-xl), 0 0 0 3px rgba(4, 102, 200, 0.1);
+  box-shadow: var(--shadow-xl), 0 0 0 3px rgba(4, 102, 200, 0.2);
 }
 
 /* Floating Label System */
@@ -450,7 +458,7 @@ select:focus {
 .form-check label {
   margin: 0;
   font-weight: 500;
-  color: #374151;
+  color: #e2e8f0;
   text-transform: none;
   letter-spacing: normal;
   font-size: var(--text-base);
@@ -716,26 +724,72 @@ select:focus {
 }
 
 /* Enhanced Table Styles */
-.data-table {
+.table-container {
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(51, 65, 85, 0.9) 0%, rgba(71, 85, 105, 0.9) 100%);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
   position: relative;
-}
-
-.data-table tbody tr {
-  transition: all 0.2s ease;
-}
-
-.data-table tbody tr:hover {
-  background: #f8fafc;
-  transform: scale(1.005);
-  box-shadow: var(--shadow-sm);
-}
-
-.data-table th {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background: #f8fafc;
+  margin: var(--space-xl) 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
+}
+
+.table-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--primary-gradient);
+}
+
+.table-wrapper {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  padding: var(--space-4) var(--space-6);
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all var(--transition-fast);
+  color: #e2e8f0;
+}
+
+.table th {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.8) 0%, rgba(30, 41, 59, 0.8) 100%);
+  font-weight: 700;
+  color: #f1f5f9;
+  font-size: var(--text-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  position: relative;
+  border-bottom: 2px solid rgba(4, 102, 200, 0.3);
+}
+
+.table tbody tr {
+  transition: all var(--transition-fast);
+  background: transparent;
+}
+
+.table tbody tr:hover {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(29, 78, 216, 0.1) 100%);
+  transform: scale(1.01);
+}
+
+.table tbody tr:nth-child(even) {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.table tbody tr:nth-child(even):hover {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(29, 78, 216, 0.15) 100%);
 }
 
 /* Enhanced Modal Styles */
@@ -880,35 +934,38 @@ select:focus {
 /* Enhanced Form Sections */
 .form-section {
   position: relative;
-  padding: 1.5rem;
-  border-radius: 0.75rem;
-  background: #597693;
-  margin-bottom: 2rem;
-  border: 1px solid #e2e8f0;
-  transition: all 0.3s ease;
+  padding: var(--space-8);
+  border-radius: var(--radius-2xl);
+  background: linear-gradient(135deg, rgba(51, 65, 85, 0.9) 0%, rgba(71, 85, 105, 0.9) 100%);
+  margin-bottom: var(--space-8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all var(--transition-normal);
+  backdrop-filter: blur(10px);
 }
 
 .form-section:hover {
-  background: #647a7e;
-  border-color: #cbd5e1;
-  box-shadow: var(--shadow-sm);
+  background: linear-gradient(135deg, rgba(51, 65, 85, 0.95) 0%, rgba(71, 85, 105, 0.95) 100%);
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: var(--shadow-xl);
+  transform: translateY(-2px);
 }
 
 .form-section .section-title {
   margin-top: 0;
-  color: #ffffff;
+  color: #f1f5f9;
   font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
 }
 
 .form-section .section-title::before {
   content: '';
   width: 4px;
-  height: 20px;
+  height: 24px;
   background: var(--primary-gradient);
-  border-radius: 2px;
+  border-radius: var(--radius-full);
 }
 
 /* Fixed Header */
@@ -923,7 +980,17 @@ select:focus {
 
 /* General heading styles */
 h1, h2, h3, h4, h5, h6 {
-  color: #ffffff;
+  color: #f1f5f9;
+}
+
+/* Page titles and descriptions */
+.page-title {
+  color: #f1f5f9 !important;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.page-description {
+  color: #cbd5e1 !important;
 }
 
 /* Enhanced Checkbox Styles */
@@ -1341,7 +1408,7 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Enhanced Utility Classes */
 .text-shadow {
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .backdrop-blur {
@@ -1353,4 +1420,67 @@ h1, h2, h3, h4, h5, h6 {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+}
+
+/* Form Container Enhancements */
+.form-container {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  padding: var(--space-6) !important;
+  margin: 0 auto !important;
+  max-width: 1200px !important;
+}
+
+/* Form Grid Consistency */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--space-6);
+  margin-bottom: var(--space-8);
+}
+
+/* Form Actions Alignment */
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-4);
+  margin-top: var(--space-8);
+  padding-top: var(--space-6);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Status Text Colors */
+.text-success {
+  color: #10b981 !important;
+}
+
+.text-error {
+  color: #ef4444 !important;
+}
+
+.text-warning {
+  color: #f59e0b !important;
+}
+
+.text-info {
+  color: #3b82f6 !important;
+}
+
+/* Consistent text colors for all elements */
+p, span, div, label, td, th {
+  color: inherit;
+}
+
+/* Make sure all form text is visible */
+.form-container * {
+  color: #e2e8f0;
+}
+
+.form-container label {
+  color: #e2e8f0 !important;
+}
+
+.form-container .section-title {
+  color: #f1f5f9 !important;
 }
