@@ -307,11 +307,49 @@ function doPost(e) {
 }
 
 // --- Login & Authentication Functions ---
+
+// Debug function to check Agents sheet data
+function debugAgentsSheet() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const agentSheet = ss.getSheetByName('Agents');
+    
+    if (!agentSheet) {
+      Logger.log('❌ Agents sheet not found');
+      return { error: 'Agents sheet not found' };
+    }
+    
+    const lastRow = agentSheet.getLastRow();
+    const lastCol = agentSheet.getLastColumn();
+    
+    Logger.log('📊 Agents sheet info: ' + lastRow + ' rows, ' + lastCol + ' columns');
+    
+    if (lastRow > 0) {
+      const allData = agentSheet.getRange(1, 1, lastRow, lastCol).getValues();
+      Logger.log('📋 Headers: ' + JSON.stringify(allData[0]));
+      
+      for (let i = 1; i < allData.length; i++) {
+        Logger.log('👤 Row ' + (i + 1) + ': ' + JSON.stringify(allData[i]));
+      }
+    }
+    
+    return { status: 'success', message: 'Check logs for details' };
+  } catch (error) {
+    Logger.log('❌ Error in debugAgentsSheet: ' + error.toString());
+    return { error: error.toString() };
+  }
+}
 function verifyLogin(agentName, password) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const agentSheet = ss.getSheetByName('Agents');
   if (!agentSheet) {
     return { error: 'Agents sheet not found.' };
+  }
+
+  // Check if there's any data in the sheet
+  const lastRow = agentSheet.getLastRow();
+  if (lastRow <= 1) {
+    return { error: 'No users found in the system.' };
   }
 
   const dataRange = agentSheet.getDataRange();
@@ -326,38 +364,56 @@ function verifyLogin(agentName, password) {
     return { error: 'Required columns (agentName, password) not found in Agents sheet.' };
   }
 
+  // Input validation - ensure both parameters exist and are not empty
+  if (!agentName || !password || 
+      String(agentName).trim() === '' || String(password).trim() === '') {
+    Logger.log('Login failed: Empty credentials provided');
+    return { error: 'Agent name and password cannot be empty.' };
+  }
+
   Logger.log('Verifying login for agent: ' + agentName);
   Logger.log('Headers: ' + JSON.stringify(headers));
   Logger.log('agentNameColIndex: ' + agentNameColIndex + ', passwordColIndex: ' + passwordColIndex + ', roleColIndex: ' + roleColIndex);
 
+  // Check each row for matching credentials
   for (let i = 1; i < values.length; i++) {
     const row = values[i];
     Logger.log('Checking row ' + i + ': ' + JSON.stringify(row));
     
-    if (row[agentNameColIndex] == agentName && row[passwordColIndex] == password) {
+    // Convert to strings and trim whitespace for proper comparison
+    const sheetAgentName = String(row[agentNameColIndex] || '').trim();
+    const sheetPassword = String(row[passwordColIndex] || '').trim();
+    const inputAgentName = String(agentName).trim();
+    const inputPassword = String(password).trim();
+    
+    Logger.log('Comparing: "' + inputAgentName + '" vs "' + sheetAgentName + '"');
+    Logger.log('Password comparison: lengths - input: ' + inputPassword.length + ', sheet: ' + sheetPassword.length);
+    
+    // Strict comparison with proper string handling
+    if (sheetAgentName.toLowerCase() === inputAgentName.toLowerCase() && sheetPassword === inputPassword) {
       let role = 'user'; // Default role
       
       if (roleColIndex !== -1 && row[roleColIndex]) {
-        role = String(row[roleColIndex]).toLowerCase(); // Convert to string and lowercase
+        role = String(row[roleColIndex]).trim().toLowerCase(); // Convert to string and lowercase
       }
       
-      Logger.log('Login successful for agent: ' + agentName + ' with role: ' + role);
+      Logger.log('✅ Login successful for agent: ' + agentName + ' with role: ' + role);
       
       // For admin user, explicitly set role to 'admin'
-      if (agentName === 'admin' || role === 'admin') {
+      if (sheetAgentName.toLowerCase() === 'admin' || role === 'admin') {
         role = 'admin';
         Logger.log('Setting explicit admin role for user: ' + agentName);
       }
       
       return { 
-        agentName: agentName, 
+        agentName: sheetAgentName, // Return the name with its original casing from the sheet
         role: role,
         avatarUrl: avatarUrlColIndex !== -1 ? row[avatarUrlColIndex] || '' : '' 
       };
     }
   }
   
-  Logger.log('Login failed for agent: ' + agentName);
+  Logger.log('❌ Login failed for agent: ' + agentName + ' - no matching credentials found');
   return { error: 'Invalid agent name or password.' };
 }
 
@@ -788,25 +844,44 @@ function handleLogin(e) {
     const password = e.parameter.password;
     const callback = e.parameter.callback;
     
-    Logger.log('handleLogin called for agent: ' + agentName);
+    Logger.log('🔐 handleLogin called for agent: ' + agentName);
     
-    if (!agentName || !password) {
+    // Enhanced validation
+    if (!agentName || !password || 
+        String(agentName).trim() === '' || String(password).trim() === '') {
+      Logger.log('❌ Login failed: Missing or empty credentials');
       return ContentService.createTextOutput(
-        callback + '(' + JSON.stringify({ error: 'Agent name and password are required.' }) + ');'
+        callback + '(' + JSON.stringify({ error: 'Agent name and password are required and cannot be empty.' }) + ');'
       ).setMimeType(ContentService.MimeType.JAVASCRIPT);
     }
     
-    const result = verifyLogin(agentName, password);
-    Logger.log('Login result: ' + JSON.stringify(result));
+    // Add basic rate limiting (prevent too many rapid requests)
+    const currentTime = new Date().getTime();
+    const cacheKey = 'login_attempt_' + String(agentName).trim().toLowerCase();
+    const cache = CacheService.getScriptCache();
+    const lastAttempt = cache.get(cacheKey);
     
-    return ContentService.createTextOutput(
-      callback + '(' + JSON.stringify(result) + ');'
-    ).setMimeType(ContentService.MimeType.JAVASCRIPT);
+    if (lastAttempt && (currentTime - parseInt(lastAttempt)) < 1000) { // 1 second delay
+      Logger.log('❌ Login failed: Too many rapid attempts for agent: ' + agentName);
+      return ContentService.createTextOutput(
+        callback + '(' + JSON.stringify({ error: 'Please wait before trying again.' }) + ');'
+      ).setMimeType(ContentService.MimeType.JAVASCRIPT);
+    }
+    
+    // Store attempt timestamp
+    cache.put(cacheKey, currentTime.toString(), 60); // Cache for 1 minute
+    
+    const result = verifyLogin(agentName, password);
+    Logger.log('🔐 Login result: ' + JSON.stringify(result));
+    
+    // If login failed, add additional logging
+    if (result.error) {
+      Logger.log('❌ Login attempt failed for agent: ' + agentName + ' - ' + result.error);
+    }
+    return result;
   } catch (error) {
-    Logger.log('Error in handleLogin: %s', error.toString());
-    return ContentService.createTextOutput(
-      e.parameter.callback + '(' + JSON.stringify({ error: 'Server error: ' + error.toString() }) + ');'
-    ).setMimeType(ContentService.MimeType.JAVASCRIPT);
+    Logger.log('❌ Error in handleLogin: %s', error.toString());
+    return { error: 'Server error: ' + error.toString() };
   }
 }
 

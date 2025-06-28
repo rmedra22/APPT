@@ -8,7 +8,7 @@ let autoSaveEnabled = true;
 let isLoading = false; // Loading state tracker
 
 // !!! IMPORTANT: REPLACE 'YOUR_DEPLOYMENT_ID_HERE' with your actual Google Apps Script Web App Deployment ID
-const scriptId = 'AKfycbxD0wWtSaY2Dq4Ugz5s54nc155RLc6Tf47EkpBYSdyMmhZdZZeM-ta032dKVNLNl6uphg'; // Replace with your actual script ID
+const scriptId = 'AKfycbziAMY0nnxk6taGh1tHiKZq6Ijt8j4MHecktOo70lbLFhb-5cwU5NCWhTpgvUaXHkLq'; // Replace with your actual script ID
 
 const formSheetMap = {
   'personalForm': 'Personal Details',
@@ -500,8 +500,8 @@ async function login() {
   const passwordInput = document.getElementById('password');
   const loginError = document.getElementById('loginError');
   
-  const agentName = agentNameInput.value.trim();
-  const password = passwordInput.value;
+  const agentName = agentNameInput.value.trim(); // Good, keeps trimming
+  const password = passwordInput.value.trim(); // Added .trim() to fix whitespace issues
   
   console.log('🔐 Login attempt for agent:', agentName);
   
@@ -531,10 +531,20 @@ async function login() {
   
   try {
     const url = `https://script.google.com/macros/s/${scriptId}/exec?action=login&agent=${encodeURIComponent(agentName)}&password=${encodeURIComponent(password)}`;
+    console.log('🔗 Login URL:', url);
+    console.log('📤 Sending credentials - Agent:', agentName, 'Password length:', password.length);
+    
     const response = await makeApiCall(url);
+    console.log('📥 Login response received:', response);
     
     if (response.error) {
+      console.error('❌ Login error from server:', response.error);
       throw new Error(response.error);
+    }
+    
+    if (!response.agentName && !response.role) {
+      console.error('❌ Invalid response structure:', response);
+      throw new Error('Invalid response from server');
     }
     
     // Successful login

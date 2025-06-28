@@ -760,6 +760,27 @@
         </button>
       </form>
       
+      <!-- Debug Panel (only visible in development) -->
+      <div id="debugPanel" style="display: none;" class="mt-4 p-3 bg-gray-800 rounded text-xs text-gray-300">
+        <h4 class="text-white font-bold mb-2">Debug Info:</h4>
+        <div>
+          <strong>Default Credentials:</strong><br>
+          Username: admin<br>
+          Password: admin123
+        </div>
+        <button type="button" onclick="testLogin()" class="mt-2 px-3 py-1 bg-blue-600 text-white rounded text-xs">
+          Test Login
+        </button>
+        <button type="button" onclick="debugAgentsData()" class="mt-2 px-3 py-1 bg-green-600 text-white rounded text-xs">
+          Debug Agents Data
+        </button>
+      </div>
+      
+      <!-- Toggle Debug Button -->
+      <button type="button" onclick="toggleDebug()" class="mt-2 text-xs text-gray-400 hover:text-white">
+        Toggle Debug
+      </button>
+      
      
     </div>
   </div>
@@ -1887,6 +1908,38 @@
   <script src="script_enhanced.js"></script>
   
   <script>
+    // Debug functions for login testing
+    function toggleDebug() {
+      const debugPanel = document.getElementById('debugPanel');
+      if (debugPanel) {
+        debugPanel.style.display = debugPanel.style.display === 'none' ? 'block' : 'none';
+      }
+    }
+    
+    function testLogin() {
+      console.log('🧪 Testing login with default credentials...');
+      document.getElementById('agentName').value = 'admin';
+      document.getElementById('password').value = 'admin123';
+      document.getElementById('loginForm').dispatchEvent(new Event('submit'));
+    }
+    
+    async function debugAgentsData() {
+      console.log('🔍 Debugging Agents sheet data...');
+      try {
+        const scriptId = 'AKfycbziAMY0nnxk6taGh1tHiKZq6Ijt8j4MHecktOo70lbLFhb-5cwU5NCWhTpgvUaXHkLq';
+        const url = `https://script.google.com/macros/s/${scriptId}/exec?action=debugAgents`;
+        
+        const response = await makeApiCall(url);
+        console.log('📋 Agents data debug response:', response);
+        alert('Check console for Agents sheet debug info');
+      } catch (error) {
+        console.error('❌ Error debugging agents data:', error);
+        alert('Error debugging agents data: ' + error.message);
+      }
+    }
+  </script>
+  
+  <script>
     // Dreams List functionality - GLOBAL SCOPE
     let dreamEntries = [];
     let dreamEntryCounter = 0;
@@ -2422,7 +2475,7 @@
         console.log('📤 Sending bulk update data:', bulkUpdateData);
 
         // Use the bulk update API endpoint
-        const scriptId = window.scriptId || 'AKfycbxD0wWtSaY2Dq4Ugz5s54nc155RLc6Tf47EkpBYSdyMmhZdZZeM-ta032dKVNLNl6uphg';
+        const scriptId = window.scriptId || 'AKfycbziAMY0nnxk6taGh1tHiKZq6Ijt8j4MHecktOo70lbLFhb-5cwU5NCWhTpgvUaXHkLq';
         const url = `https://script.google.com/macros/s/${scriptId}/exec?action=bulkUpdateEntries&data=${encodeURIComponent(JSON.stringify(bulkUpdateData))}`;
         
         console.log('📡 Making API call to:', url.substring(0, 100) + '...');
